@@ -333,13 +333,6 @@ export const Homepage: React.FC = () => {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Welcome to FinIQ.ai</h2>
               <p className="text-gray-400 mb-6">Select an option from the dashboard to get started</p>
-              <Button
-                onClick={startVideoConsultation}
-                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold"
-              >
-                <Video className="size-5 mr-2" />
-                Start Video Consultation
-              </Button>
             </div>
           </div>
         );
@@ -348,7 +341,7 @@ export const Homepage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex">
-      {/* Left Sidebar - User Stats */}
+      {/* Left Sidebar - Financial Overview (without persona button) */}
       <div className="w-80 bg-gray-800 border-r border-gray-700 p-6 overflow-y-auto">
         <div className="mb-6">
           <h2 className="text-white text-xl font-bold mb-2">Financial Overview</h2>
@@ -405,15 +398,66 @@ export const Homepage: React.FC = () => {
           </div>
         </div>
 
-        {/* Start Conversation Button - Restored */}
         <div className="mt-8">
-          <Button
-            onClick={startVideoConsultation}
-            className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold h-12 rounded-lg shadow-lg hover:shadow-green-600/25 transition-all duration-200"
-          >
-            <Video className="size-5 mr-2" />
-            Start Conversation with Persona
-          </Button>
+          <h3 className="text-white text-lg font-semibold mb-4">Recent Transactions</h3>
+          <div className="space-y-3">
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-white text-sm font-medium">Salary Deposit</div>
+                  <div className="text-gray-400 text-xs">Jan 15, 2025</div>
+                </div>
+                <div className="text-green-400 font-semibold">+$8,500</div>
+              </div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-white text-sm font-medium">Investment Purchase</div>
+                  <div className="text-gray-400 text-xs">Jan 12, 2025</div>
+                </div>
+                <div className="text-red-400 font-semibold">-$2,000</div>
+              </div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-white text-sm font-medium">Dividend Payment</div>
+                  <div className="text-gray-400 text-xs">Jan 10, 2025</div>
+                </div>
+                <div className="text-green-400 font-semibold">+$450</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h3 className="text-white text-lg font-semibold mb-4">Goals Progress</h3>
+          <div className="space-y-4">
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-white text-sm font-medium">Emergency Fund</span>
+                <span className="text-gray-400 text-sm">75%</span>
+              </div>
+              <div className="w-full bg-gray-600 rounded-full h-2">
+                <div className="bg-green-500 h-2 rounded-full" style={{ width: '75%' }}></div>
+              </div>
+              <div className="text-gray-400 text-xs mt-1">$7,500 / $10,000</div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-white text-sm font-medium">Retirement Fund</span>
+                <span className="text-gray-400 text-sm">45%</span>
+              </div>
+              <div className="w-full bg-gray-600 rounded-full h-2">
+                <div className="bg-green-400 h-2 rounded-full" style={{ width: '45%' }}></div>
+              </div>
+              <div className="text-gray-400 text-xs mt-1">$45,000 / $100,000</div>
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 text-center">
@@ -451,13 +495,27 @@ export const Homepage: React.FC = () => {
           </div>
         </div>
 
+        {/* Video Consultation Section - Below Dashboard */}
+        <div className="bg-gray-800 border-b border-gray-700 p-4">
+          <div className="flex items-center justify-center">
+            <Button
+              onClick={startVideoConsultation}
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-green-600/25 transition-all duration-200"
+            >
+              <Video className="size-5 mr-2" />
+              Start Video Consultation
+              <ArrowRight className="size-5 ml-2" />
+            </Button>
+          </div>
+        </div>
+
         {/* Main Content Area */}
         <div className="flex-1 p-4 overflow-y-auto">
           {renderSectionContent()}
         </div>
       </div>
 
-      {/* Right Sidebar - Jargon Guide - Restored */}
+      {/* Right Sidebar - Jargon Guide */}
       <JargonGuide />
     </div>
   );
