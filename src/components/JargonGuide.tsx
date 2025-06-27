@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, BookOpen, TrendingUp, TrendingDown, DollarSign, Shield, Building, PieChart } from 'lucide-react';
+import { motion, useScroll, useTransform, useMotionValue } from 'framer-motion';
 
 interface JargonTerm {
   term: string;
@@ -108,9 +109,96 @@ const categoryColors = {
   general: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20'
 };
 
+interface CardProps {
+  term: JargonTerm;
+  index: number;
+  scrollY: any;
+  containerHeight: number;
+  cardHeight: number;
+}
+
+const JargonCard: React.FC<CardProps> = ({ term, index, scrollY, containerHeight, cardHeight }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardTop, setCardTop] = useState(0);
+
+  useEffect(() => {
+    if (cardRef.current) {
+      setCardTop(index * (cardHeight + 12)); // 12px gap between cards
+    }
+  }, [index, cardHeight]);
+
+  // Calculate the center of the viewport
+  const viewportCenter = containerHeight / 2;
+  
+  // Calculate card center position relative to viewport
+  const cardCenter = cardTop + cardHeight / 2;
+  
+  // Transform based on distance from viewport center
+  const translateZ = useTransform(
+    scrollY,
+    [
+      cardCenter - viewportCenter - cardHeight,
+      cardCenter - viewportCenter,
+      cardCenter - viewportCenter + cardHeight
+    ],
+    [-100, 100, -100]
+  );
+
+  const scale = useTransform(
+    scrollY,
+    [
+      cardCenter - viewportCenter - cardHeight,
+      cardCenter - viewportCenter,
+      cardCenter - viewportCenter + cardHeight
+    ],
+    [0.7, 1, 0.7]
+  );
+
+  const opacity = useTransform(
+    scrollY,
+    [
+      cardCenter - viewportCenter - cardHeight * 1.5,
+      cardCenter - viewportCenter - cardHeight * 0.5,
+      cardCenter - viewportCenter + cardHeight * 0.5,
+      cardCenter - viewportCenter + cardHeight * 1.5
+    ],
+    [0, 1, 1, 0]
+  );
+
+  return (
+    <motion.div
+      ref={cardRef}
+      style={{
+        translateZ,
+        scale,
+        opacity,
+        position: 'relative',
+        zIndex: useTransform(translateZ, (z) => Math.round(z + 100))
+      }}
+      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200 mb-3"
+    >
+      <div className="flex items-start gap-3 mb-2">
+        <div className={`p-1 rounded border ${categoryColors[term.category]}`}>
+          {term.icon}
+        </div>
+        <div className="flex-1">
+          <h3 className="text-white font-semibold text-sm mb-1">{term.term}</h3>
+          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[term.category]}`}>
+            {term.category}
+          </span>
+        </div>
+      </div>
+      <p className="text-gray-300 text-sm leading-relaxed">{term.definition}</p>
+    </motion.div>
+  );
+};
+
 export const JargonGuide: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const { scrollY } = useScroll({ container: scrollRef });
 
   const filteredTerms = jargonTerms.filter(term => {
     const matchesSearch = term.term.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -119,8 +207,11 @@ export const JargonGuide: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
+  const containerHeight = 400; // Fixed height for the scrollable container
+  const cardHeight = 120; // Approximate height of each card
+
   return (
-    <div className="w-80 bg-gray-800 border-l border-gray-700 p-6 overflow-y-auto">
+    <div className="w-80 bg-gray-800 border-l border-gray-700 p-6 overflow-hidden">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <BookOpen className="size-5 text-green-400" />
@@ -187,25 +278,39 @@ export const JargonGuide: React.FC = () => {
         </div>
       </div>
 
-      {/* Terms List */}
-      <div className="space-y-3">
-        {filteredTerms.map((term, index) => (
-          <div key={index} className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-start gap-3 mb-2">
-              <div className={`p-1 rounded border ${categoryColors[term.category]}`}>
-                {term.icon}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-semibold text-sm mb-1">{term.term}</h3>
-                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[term.category]}`}>
-                  {term.category}
-                </span>
-              </div>
+      {/* 3D Scrollable Terms List */}
+      <motion.div
+        ref={scrollRef}
+        className="overflow-y-auto"
+        style={{
+          height: `${containerHeight}px`,
+          perspective: '1000px',
+          transformStyle: 'preserve-3d'
+        }}
+      >
+        <div style={{ height: `${filteredTerms.length * (cardHeight + 12)}px`, position: 'relative' }}>
+          {filteredTerms.map((term, index) => (
+            <div
+              key={`${term.term}-${selectedCategory}`}
+              style={{
+                position: 'absolute',
+                top: `${index * (cardHeight + 12)}px`,
+                left: 0,
+                right: 0,
+                height: `${cardHeight}px`
+              }}
+            >
+              <JargonCard
+                term={term}
+                index={index}
+                scrollY={scrollY}
+                containerHeight={containerHeight}
+                cardHeight={cardHeight}
+              />
             </div>
-            <p className="text-gray-300 text-sm leading-relaxed">{term.definition}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </motion.div>
 
       {filteredTerms.length === 0 && (
         <div className="text-center py-8">
