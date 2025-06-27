@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, User, Mail, Lock, Eye, EyeOff, AlertCircle, Shield, TrendingUp, DollarSign, Sparkles, BarChart3, Target } from 'lucide-react'
+import { Loader2, User, Mail, Lock, Eye, EyeOff, AlertCircle, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AuthWrapperProps {
@@ -115,292 +115,216 @@ const AuthForm: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-3xl animate-pulse delay-2000" />
-      </div>
-
-      {/* Floating Particles */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-primary/30 rounded-full animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 2}s`
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Left Side - Enhanced Branding & Features */}
-      <div className="hidden lg:flex lg:w-3/5 relative z-10">
+    <div className="min-h-screen bg-gray-900 flex">
+      {/* Left Side - Simple Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gray-800 relative">
         <div className="flex flex-col justify-center px-16 py-20 w-full">
           {/* Logo Section */}
-          <div className="mb-16">
+          <div className="mb-12">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-                <Sparkles className="size-7 text-white" />
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                <TrendingUp className="size-6 text-white" />
               </div>
-              <h1 className="text-6xl font-bold bg-gradient-to-r from-primary via-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold text-white">
                 FinIQ.ai
               </h1>
             </div>
-            <p className="text-2xl text-white/90 leading-relaxed font-light">
-              Transform your financial future with AI-powered insights and personalized guidance
+            <p className="text-xl text-gray-300 leading-relaxed max-w-md">
+              Your AI financial mentor for smarter money decisions and long-term wealth building.
             </p>
-            <div className="mt-6 flex items-center gap-2 text-primary/80">
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              <span className="text-sm font-medium">Trusted by 10,000+ users worldwide</span>
+          </div>
+
+          {/* Simple Feature List */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-2 h-2 bg-primary rounded-full" />
+              <span className="text-gray-300">AI-powered financial analysis</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-2 h-2 bg-primary rounded-full" />
+              <span className="text-gray-300">Personalized investment advice</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-2 h-2 bg-primary rounded-full" />
+              <span className="text-gray-300">Secure document analysis</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-2 h-2 bg-primary rounded-full" />
+              <span className="text-gray-300">24/7 financial guidance</span>
             </div>
           </div>
 
-          {/* Enhanced Feature Cards */}
-          <div className="space-y-8">
-            <div className="group flex items-start gap-6 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-105">
-              <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <TrendingUp className="size-8 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-bold text-xl mb-2">Smart Financial Analysis</h3>
-                <p className="text-white/70 leading-relaxed">Advanced AI algorithms analyze your financial documents to provide actionable insights and recommendations tailored to your unique situation.</p>
-              </div>
+          {/* Simple Stats */}
+          <div className="mt-16 grid grid-cols-2 gap-8">
+            <div>
+              <div className="text-3xl font-bold text-white mb-1">10K+</div>
+              <div className="text-gray-400 text-sm">Users</div>
             </div>
-
-            <div className="group flex items-start gap-6 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-105">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <Target className="size-8 text-green-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-bold text-xl mb-2">Goal-Oriented Planning</h3>
-                <p className="text-white/70 leading-relaxed">Set and track your financial goals with personalized roadmaps, milestone tracking, and adaptive strategies that evolve with your progress.</p>
-              </div>
-            </div>
-
-            <div className="group flex items-start gap-6 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-105">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <Shield className="size-8 text-purple-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-bold text-xl mb-2">Enterprise Security</h3>
-                <p className="text-white/70 leading-relaxed">Bank-grade encryption, zero-knowledge architecture, and compliance with financial industry standards ensure your data stays private and secure.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Enhanced Stats */}
-          <div className="mt-16 grid grid-cols-3 gap-8">
-            <div className="text-center group">
-              <div className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">
-                10K+
-              </div>
-              <div className="text-white/60 text-sm font-medium">Documents Analyzed</div>
-            </div>
-            <div className="text-center group">
-              <div className="text-4xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">
-                95%
-              </div>
-              <div className="text-white/60 text-sm font-medium">User Satisfaction</div>
-            </div>
-            <div className="text-center group">
-              <div className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">
-                24/7
-              </div>
-              <div className="text-white/60 text-sm font-medium">AI Availability</div>
+            <div>
+              <div className="text-3xl font-bold text-white mb-1">95%</div>
+              <div className="text-gray-400 text-sm">Satisfaction</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Side - Enhanced Auth Form */}
-      <div className="w-full lg:w-2/5 flex items-center justify-center p-8 relative z-10">
-        <div className="w-full max-w-lg">
+      {/* Right Side - Clean Auth Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-900">
+        <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <div className="lg:hidden text-center mb-12">
+          <div className="lg:hidden text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-500 rounded-xl flex items-center justify-center">
-                <Sparkles className="size-6 text-white" />
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <TrendingUp className="size-5 text-white" />
               </div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold text-white">
                 FinIQ.ai
               </h1>
             </div>
-            <p className="text-white/70 text-lg">Your AI Financial Mentor</p>
           </div>
 
-          {/* Enhanced Auth Card */}
-          <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-10 shadow-2xl relative overflow-hidden">
-            {/* Card Background Glow */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-500/5 rounded-3xl" />
-            
-            <div className="relative z-10">
-              <div className="text-center mb-10">
-                <h2 className="text-3xl font-bold text-white mb-3">
-                  {isSignUp ? 'Create Your Account' : 'Welcome Back'}
-                </h2>
-                <p className="text-white/70 text-lg">
-                  {isSignUp 
-                    ? 'Join thousands of users transforming their finances' 
-                    : 'Continue your journey to financial freedom'
-                  }
-                </p>
+          {/* Auth Card */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-8">
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold text-white mb-2">
+                {isSignUp ? 'Join FinIQ.ai' : 'Sign in'}
+              </h2>
+              <p className="text-gray-400">
+                {isSignUp 
+                  ? 'Create your account to get started' 
+                  : 'Welcome back to your financial dashboard'
+                }
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {isSignUp && (
+                <div>
+                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
+                    Full name
+                  </label>
+                  <Input
+                    ref={fullNameRef}
+                    id="fullName"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'fullName')}
+                    className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-primary focus:ring-primary"
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  Email
+                </label>
+                <Input
+                  ref={emailRef}
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, 'email')}
+                  className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-primary focus:ring-primary"
+                  required
+                />
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-8">
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Input
+                    ref={passwordRef}
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'password')}
+                    className="h-12 pr-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-primary focus:ring-primary"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                  >
+                    {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                  </button>
+                </div>
                 {isSignUp && (
-                  <div className="space-y-3">
-                    <label className="text-sm font-semibold text-white/90 flex items-center gap-2">
-                      <User className="size-4" />
-                      Full Name
-                    </label>
-                    <div className="relative group">
-                      <Input
-                        ref={fullNameRef}
-                        type="text"
-                        placeholder="Enter your full name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, 'fullName')}
-                        className="h-14 bg-white/10 border-white/30 text-white placeholder-white/50 rounded-2xl focus:border-primary/60 focus:ring-primary/30 transition-all duration-300 group-hover:bg-white/15"
-                        required
-                      />
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/20 to-blue-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Must be at least 6 characters
+                  </p>
                 )}
-
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold text-white/90 flex items-center gap-2">
-                    <Mail className="size-4" />
-                    Email Address
-                  </label>
-                  <div className="relative group">
-                    <Input
-                      ref={emailRef}
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, 'email')}
-                      className="h-14 bg-white/10 border-white/30 text-white placeholder-white/50 rounded-2xl focus:border-primary/60 focus:ring-primary/30 transition-all duration-300 group-hover:bg-white/15"
-                      required
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/20 to-blue-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold text-white/90 flex items-center gap-2">
-                    <Lock className="size-4" />
-                    Password
-                  </label>
-                  <div className="relative group">
-                    <Input
-                      ref={passwordRef}
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, 'password')}
-                      className="h-14 pr-14 bg-white/10 border-white/30 text-white placeholder-white/50 rounded-2xl focus:border-primary/60 focus:ring-primary/30 transition-all duration-300 group-hover:bg-white/15"
-                      required
-                      minLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors duration-200"
-                    >
-                      {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-                    </button>
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/20 to-blue-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
-                  </div>
-                  {isSignUp && (
-                    <p className="text-xs text-white/60 flex items-center gap-2">
-                      <Shield className="size-3" />
-                      Minimum 6 characters required
-                    </p>
-                  )}
-                </div>
-
-                {error && (
-                  <div className="flex items-start gap-3 p-5 bg-red-500/20 border border-red-500/30 rounded-2xl backdrop-blur-sm">
-                    <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-red-300" />
-                    <span className="text-red-200 text-sm leading-relaxed">{error}</span>
-                  </div>
-                )}
-
-                {success && (
-                  <div className="flex items-start gap-3 p-5 bg-green-500/20 border border-green-500/30 rounded-2xl backdrop-blur-sm">
-                    <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-green-300" />
-                    <span className="text-green-200 text-sm leading-relaxed">{success}</span>
-                  </div>
-                )}
-
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full h-14 bg-gradient-to-r from-primary via-blue-500 to-purple-500 hover:from-primary/90 hover:via-blue-500/90 hover:to-purple-500/90 text-white font-bold text-lg rounded-2xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-105 relative overflow-hidden group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  {isLoading ? (
-                    <Loader2 className="size-6 animate-spin mr-3" />
-                  ) : null}
-                  <span className="relative z-10">
-                    {isSignUp ? 'Create Account' : 'Sign In'}
-                  </span>
-                </Button>
-              </form>
-
-              <div className="mt-10 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUp(!isSignUp)
-                    setError(null)
-                    setSuccess(null)
-                    setPassword('')
-                  }}
-                  className="text-primary hover:text-primary/80 text-sm font-semibold transition-colors duration-200 relative group"
-                >
-                  <span className="relative z-10">
-                    {isSignUp 
-                      ? 'Already have an account? Sign in' 
-                      : "Don't have an account? Sign up"
-                    }
-                  </span>
-                  <div className="absolute inset-0 bg-primary/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-10" />
-                </button>
               </div>
 
-              {/* Enhanced Keyboard Navigation Hint */}
-              <div className="mt-8 text-center">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                  <div className="flex gap-1">
-                    <kbd className="px-2 py-1 bg-white/10 rounded text-xs text-white/70">↑</kbd>
-                    <kbd className="px-2 py-1 bg-white/10 rounded text-xs text-white/70">↓</kbd>
-                  </div>
-                  <span className="text-white/50 text-xs">Navigate between fields</span>
+              {error && (
+                <div className="flex items-start gap-3 p-4 bg-red-900/50 border border-red-700 rounded-lg">
+                  <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-red-400" />
+                  <span className="text-red-300 text-sm">{error}</span>
                 </div>
+              )}
+
+              {success && (
+                <div className="flex items-start gap-3 p-4 bg-green-900/50 border border-green-700 rounded-lg">
+                  <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-green-400" />
+                  <span className="text-green-300 text-sm">{success}</span>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg transition-colors"
+              >
+                {isLoading ? (
+                  <Loader2 className="size-5 animate-spin mr-2" />
+                ) : null}
+                {isSignUp ? 'Create account' : 'Sign in'}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp)
+                  setError(null)
+                  setSuccess(null)
+                  setPassword('')
+                }}
+                className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+              >
+                {isSignUp 
+                  ? 'Already have an account? Sign in' 
+                  : "New to FinIQ.ai? Join now"
+                }
+              </button>
+            </div>
+
+            {/* Keyboard Navigation Hint */}
+            <div className="mt-6 text-center">
+              <div className="inline-flex items-center gap-2 text-xs text-gray-500">
+                <kbd className="px-2 py-1 bg-gray-700 rounded text-gray-400">↑</kbd>
+                <kbd className="px-2 py-1 bg-gray-700 rounded text-gray-400">↓</kbd>
+                <span>Navigate fields</span>
               </div>
             </div>
           </div>
 
-          {/* Enhanced Security Notice */}
-          <div className="mt-10 text-center">
-            <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
-              <Shield className="size-5 text-primary" />
-              <div className="text-left">
-                <div className="text-white/80 text-sm font-medium">Bank-Grade Security</div>
-                <div className="text-white/50 text-xs">End-to-end encryption • Zero data sharing</div>
-              </div>
-            </div>
+          {/* Security Notice */}
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-500">
+              Secured with bank-level encryption
+            </p>
           </div>
         </div>
       </div>
@@ -449,19 +373,13 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center relative overflow-hidden">
-        {/* Loading Background Animation */}
-        <div className="absolute inset-0">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        </div>
-        
-        <div className="text-center relative z-10">
-          <div className="w-16 h-16 bg-gradient-to-r from-primary to-blue-500 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-            <Loader2 className="size-8 animate-spin text-white" />
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4 mx-auto">
+            <Loader2 className="size-6 animate-spin text-white" />
           </div>
-          <h3 className="text-white text-xl font-semibold mb-2">Loading FinIQ.ai</h3>
-          <p className="text-white/60">Preparing your financial dashboard...</p>
+          <h3 className="text-white text-lg font-medium mb-2">Loading FinIQ.ai</h3>
+          <p className="text-gray-400">Preparing your dashboard...</p>
         </div>
       </div>
     )
