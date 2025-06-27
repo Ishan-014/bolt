@@ -7,7 +7,7 @@ import { useAtom } from "jotai";
 import { getDefaultStore } from "jotai";
 import { settingsAtom, settingsSavedAtom } from "@/store/settings";
 import { screenAtom } from "@/store/screens";
-import { X, LogOut } from "lucide-react";
+import { X } from "lucide-react";
 import * as React from "react";
 import { apiTokenAtom } from "@/store/tokens";
 import { useAuth } from "@/hooks/useAuth";
@@ -116,8 +116,7 @@ export const Settings: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [token, setToken] = useAtom(apiTokenAtom);
   const [, setSettingsSaved] = useAtom(settingsSavedAtom);
-  const { signOut, user } = useAuth();
-  const [isSigningOut, setIsSigningOut] = React.useState(false);
+  const { user } = useAuth();
 
   const languages = [
     { label: "English", value: "en" },
@@ -135,7 +134,7 @@ export const Settings: React.FC = () => {
   ];
 
   const handleClose = () => {
-    setScreenState({ currentScreen: "conversation" });
+    setScreenState({ currentScreen: "homepage" });
   };
 
   const handleSave = async () => {
@@ -166,21 +165,6 @@ export const Settings: React.FC = () => {
     
     setSettingsSaved(true);
     handleClose();
-  };
-
-  const handleSignOut = async () => {
-    if (confirm('Are you sure you want to sign out?')) {
-      try {
-        setIsSigningOut(true);
-        await signOut();
-        // User will be automatically redirected to auth screen by AuthWrapper
-      } catch (error) {
-        console.error('Sign out error:', error);
-        alert('Failed to sign out. Please try again.');
-      } finally {
-        setIsSigningOut(false);
-      }
-    }
   };
 
   return (
@@ -229,19 +213,6 @@ export const Settings: React.FC = () => {
                   />
                   <p className="text-xs text-gray-400">Contact support to update your name</p>
                 </div>
-              </div>
-
-              {/* Sign Out Section - Right below Account Information */}
-              <div className="flex justify-start">
-                <Button
-                  onClick={handleSignOut}
-                  variant="destructive"
-                  disabled={isSigningOut}
-                  className="flex items-center gap-2 px-6 py-3 text-sm font-bold"
-                >
-                  <LogOut className="size-4" />
-                  {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-                </Button>
               </div>
 
               {/* AI Mentor Settings Section */}
@@ -379,7 +350,6 @@ export const Settings: React.FC = () => {
 
           <div className="sticky bottom-0 mt-6 border-t border-gray-700 pt-6 pb-8">
             <div className="flex justify-end">
-              {/* Save Changes Button - Now only button in footer */}
               <button
                 onClick={handleSave}
                 className="hover:shadow-footer-btn relative flex items-center justify-center gap-2 rounded-3xl border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.1)] px-4 py-3 text-sm font-bold text-white transition-all duration-200 hover:text-primary"
