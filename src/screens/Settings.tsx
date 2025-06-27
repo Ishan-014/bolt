@@ -7,15 +7,16 @@ import { useAtom } from "jotai";
 import { getDefaultStore } from "jotai";
 import { settingsAtom, settingsSavedAtom } from "@/store/settings";
 import { screenAtom } from "@/store/screens";
-import { X } from "lucide-react";
+import { X, LogOut } from "lucide-react";
 import * as React from "react";
 import { apiTokenAtom } from "@/store/tokens";
+import { useAuth } from "@/hooks/useAuth";
 
 // Button Component
 const Button = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    variant?: "ghost" | "outline";
+    variant?: "ghost" | "outline" | "destructive";
     size?: "icon";
   }
 >(({ className, variant, size, ...props }, ref) => {
@@ -26,6 +27,7 @@ const Button = React.forwardRef<
         {
           "border border-input bg-transparent hover:bg-accent": variant === "outline",
           "hover:bg-accent hover:text-accent-foreground": variant === "ghost",
+          "bg-red-600 text-white hover:bg-red-700": variant === "destructive",
           "size-10": size === "icon",
         },
         className
@@ -114,6 +116,8 @@ export const Settings: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [token, setToken] = useAtom(apiTokenAtom);
   const [, setSettingsSaved] = useAtom(settingsSavedAtom);
+  const { signOut, user } = useAuth();
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
 
   const languages = [
     { label: "English", value: "en" },
@@ -164,6 +168,21 @@ export const Settings: React.FC = () => {
     handleClose();
   };
 
+  const handleSignOut = async () => {
+    if (confirm('Are you sure you want to sign out?')) {
+      try {
+        setIsSigningOut(true);
+        await signOut();
+        // User will be automatically redirected to auth screen by AuthWrapper
+      } catch (error) {
+        console.error('Sign out error:', error);
+        alert('Failed to sign out. Please try again.');
+      } finally {
+        setIsSigningOut(false);
+      }
+    }
+  };
+
   return (
     <DialogWrapper>
       <AnimatedTextBlockWrapper>
@@ -183,136 +202,189 @@ export const Settings: React.FC = () => {
           
           <div className="h-[calc(100vh-500px)] overflow-y-auto pr-4 -mr-4">
             <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Your Name</Label>
-                <Input
-                  id="name"
-                  value={settings.name}
-                  onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-                  placeholder="Enter your name"
-                  className="bg-black/20 font-mono"
-                  style={{ fontFamily: "'Source Code Pro', monospace" }}
-                />
+              {/* Account Information Section */}
+              <div className="space-y-4 p-4 bg-black/20 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold text-white">Account Information</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={user?.email || ''}
+                    disabled
+                    className="bg-black/40 font-mono opacity-60"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                  <p className="text-xs text-gray-400">Your email address cannot be changed</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    value={user?.user_metadata?.full_name || ''}
+                    disabled
+                    className="bg-black/40 font-mono opacity-60"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                  <p className="text-xs text-gray-400">Contact support to update your name</p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="language">Language</Label>
-                <Select
-                  id="language"
-                  value={settings.language}
-                  onChange={(e) => setSettings({ ...settings, language: e.target.value })}
-                  className="bg-black/20 font-mono"
-                  style={{ fontFamily: "'Source Code Pro', monospace" }}
-                >
-                  {languages.map((lang) => (
-                    <option 
-                      key={lang.value} 
-                      value={lang.value}
-                      className="bg-black text-white font-mono"
-                      style={{ fontFamily: "'Source Code Pro', monospace" }}
-                    >
-                      {lang.label}
-                    </option>
-                  ))}
-                </Select>
+              {/* AI Mentor Settings Section */}
+              <div className="space-y-4 p-4 bg-black/20 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold text-white">AI Mentor Settings</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="name">Your Name (for conversations)</Label>
+                  <Input
+                    id="name"
+                    value={settings.name}
+                    onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                    placeholder="Enter your name"
+                    className="bg-black/20 font-mono"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="language">Language</Label>
+                  <Select
+                    id="language"
+                    value={settings.language}
+                    onChange={(e) => setSettings({ ...settings, language: e.target.value })}
+                    className="bg-black/20 font-mono"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  >
+                    {languages.map((lang) => (
+                      <option 
+                        key={lang.value} 
+                        value={lang.value}
+                        className="bg-black text-white font-mono"
+                        style={{ fontFamily: "'Source Code Pro', monospace" }}
+                      >
+                        {lang.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="interruptSensitivity">Interrupt Sensitivity</Label>
+                  <Select
+                    id="interruptSensitivity"
+                    value={settings.interruptSensitivity}
+                    onChange={(e) => setSettings({ ...settings, interruptSensitivity: e.target.value })}
+                    className="bg-black/20 font-mono"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  >
+                    {interruptSensitivities.map((sensitivity) => (
+                      <option 
+                        key={sensitivity.value} 
+                        value={sensitivity.value}
+                        className="bg-black text-white font-mono"
+                        style={{ fontFamily: "'Source Code Pro', monospace" }}
+                      >
+                        {sensitivity.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="greeting">Custom Greeting</Label>
+                  <Input
+                    id="greeting"
+                    value={settings.greeting}
+                    onChange={(e) => setSettings({ ...settings, greeting: e.target.value })}
+                    placeholder="Enter custom greeting"
+                    className="bg-black/20 font-mono"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="context">Custom Context</Label>
+                  <Textarea
+                    id="context"
+                    value={settings.context}
+                    onChange={(e) => setSettings({ ...settings, context: e.target.value })}
+                    placeholder="Paste or type custom context"
+                    className="min-h-[100px] bg-black/20 font-mono"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="interruptSensitivity">Interrupt Sensitivity</Label>
-                <Select
-                  id="interruptSensitivity"
-                  value={settings.interruptSensitivity}
-                  onChange={(e) => setSettings({ ...settings, interruptSensitivity: e.target.value })}
-                  className="bg-black/20 font-mono"
-                  style={{ fontFamily: "'Source Code Pro', monospace" }}
-                >
-                  {interruptSensitivities.map((sensitivity) => (
-                    <option 
-                      key={sensitivity.value} 
-                      value={sensitivity.value}
-                      className="bg-black text-white font-mono"
-                      style={{ fontFamily: "'Source Code Pro', monospace" }}
-                    >
-                      {sensitivity.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+              {/* Advanced Settings Section */}
+              <div className="space-y-4 p-4 bg-black/20 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold text-white">Advanced Settings</h3>
 
-              <div className="space-y-2">
-                <Label htmlFor="greeting">Custom Greeting</Label>
-                <Input
-                  id="greeting"
-                  value={settings.greeting}
-                  onChange={(e) => setSettings({ ...settings, greeting: e.target.value })}
-                  placeholder="Enter custom greeting"
-                  className="bg-black/20 font-mono"
-                  style={{ fontFamily: "'Source Code Pro', monospace" }}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="persona">Set Custom Persona ID</Label>
+                  <Input
+                    id="persona"
+                    value={settings.persona}
+                    onChange={(e) => setSettings({ ...settings, persona: e.target.value })}
+                    placeholder="p53279eb2464"
+                    className="bg-black/20 font-mono"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="context">Custom Context</Label>
-                <Textarea
-                  id="context"
-                  value={settings.context}
-                  onChange={(e) => setSettings({ ...settings, context: e.target.value })}
-                  placeholder="Paste or type custom context"
-                  className="min-h-[100px] bg-black/20 font-mono"
-                  style={{ fontFamily: "'Source Code Pro', monospace" }}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="replica">Set Custom Replica ID</Label>
+                  <Input
+                    id="replica"
+                    value={settings.replica}
+                    onChange={(e) => setSettings({ ...settings, replica: e.target.value })}
+                    placeholder="rb17cf590e15"
+                    className="bg-black/20 font-mono"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="persona">Set Custom Persona ID</Label>
-                <Input
-                  id="persona"
-                  value={settings.persona}
-                  onChange={(e) => setSettings({ ...settings, persona: e.target.value })}
-                  placeholder="p53279eb2464"
-                  className="bg-black/20 font-mono"
-                  style={{ fontFamily: "'Source Code Pro', monospace" }}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="replica">Set Custom Replica ID</Label>
-                <Input
-                  id="replica"
-                  value={settings.replica}
-                  onChange={(e) => setSettings({ ...settings, replica: e.target.value })}
-                  placeholder="rb17cf590e15"
-                  className="bg-black/20 font-mono"
-                  style={{ fontFamily: "'Source Code Pro', monospace" }}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="apiToken">API Token</Label>
-                <Input
-                  id="apiToken"
-                  type="password"
-                  value={token || ""}
-                  onChange={(e) => {
-                    const newToken = e.target.value;
-                    setToken(newToken);
-                    localStorage.setItem('tavus-token', newToken);
-                  }}
-                  placeholder="Enter Tavus API Key"
-                  className="bg-black/20 font-mono"
-                  style={{ fontFamily: "'Source Code Pro', monospace" }}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="apiToken">API Token</Label>
+                  <Input
+                    id="apiToken"
+                    type="password"
+                    value={token || ""}
+                    onChange={(e) => {
+                      const newToken = e.target.value;
+                      setToken(newToken);
+                      localStorage.setItem('tavus-token', newToken);
+                    }}
+                    placeholder="Enter Tavus API Key"
+                    className="bg-black/20 font-mono"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
           <div className="sticky bottom-0 mt-6 border-t border-gray-700 pt-6 pb-8">
-            <button
-              onClick={handleSave}
-              className="hover:shadow-footer-btn relative flex items-center justify-center gap-2 rounded-3xl border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.1)] px-4 py-3 text-sm font-bold text-white transition-all duration-200 hover:text-primary"
-            >
-              Save Changes
-            </button>
+            <div className="flex items-center justify-between gap-4">
+              {/* Sign Out Button */}
+              <Button
+                onClick={handleSignOut}
+                variant="destructive"
+                disabled={isSigningOut}
+                className="flex items-center gap-2 px-4 py-3 text-sm font-bold"
+              >
+                <LogOut className="size-4" />
+                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+              </Button>
+
+              {/* Save Changes Button */}
+              <button
+                onClick={handleSave}
+                className="hover:shadow-footer-btn relative flex items-center justify-center gap-2 rounded-3xl border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.1)] px-4 py-3 text-sm font-bold text-white transition-all duration-200 hover:text-primary"
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       </AnimatedTextBlockWrapper>
