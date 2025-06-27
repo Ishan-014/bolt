@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, User, Mail, Lock, Eye, EyeOff, AlertCircle, TrendingUp } from 'lucide-react'
+import { Loader2, User, Mail, Lock, Eye, EyeOff, AlertCircle, TrendingUp, Shield, Zap, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AuthWrapperProps {
@@ -116,16 +116,23 @@ const AuthForm: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex">
-      {/* Left Side - Simple Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gray-800 relative">
-        <div className="flex flex-col justify-center px-16 py-20 w-full">
+      {/* Left Side - Enhanced Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 relative overflow-hidden">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-20 left-20 w-32 h-32 bg-emerald-500 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-40 right-20 w-40 h-40 bg-emerald-400 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-emerald-600 rounded-full blur-2xl"></div>
+        </div>
+        
+        <div className="flex flex-col justify-center px-16 py-20 w-full relative z-10">
           {/* Logo Section */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <TrendingUp className="size-6 text-white" />
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                <TrendingUp className="size-7 text-white" />
               </div>
-              <h1 className="text-4xl font-bold text-white">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-emerald-100 bg-clip-text text-transparent">
                 FinIQ.ai
               </h1>
             </div>
@@ -134,65 +141,89 @@ const AuthForm: React.FC = () => {
             </p>
           </div>
 
-          {/* Simple Feature List */}
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 bg-primary rounded-full" />
-              <span className="text-gray-300">AI-powered financial analysis</span>
+          {/* Enhanced Feature List */}
+          <div className="space-y-6 mb-12">
+            <div className="flex items-center gap-4 group">
+              <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
+                <Zap className="size-5 text-emerald-400" />
+              </div>
+              <div>
+                <span className="text-white font-medium">AI-powered financial analysis</span>
+                <p className="text-gray-400 text-sm">Get instant insights from your financial data</p>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 bg-primary rounded-full" />
-              <span className="text-gray-300">Personalized investment advice</span>
+            <div className="flex items-center gap-4 group">
+              <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
+                <TrendingUp className="size-5 text-emerald-400" />
+              </div>
+              <div>
+                <span className="text-white font-medium">Personalized investment advice</span>
+                <p className="text-gray-400 text-sm">Tailored strategies for your goals</p>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 bg-primary rounded-full" />
-              <span className="text-gray-300">Secure document analysis</span>
+            <div className="flex items-center gap-4 group">
+              <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
+                <Shield className="size-5 text-emerald-400" />
+              </div>
+              <div>
+                <span className="text-white font-medium">Secure document analysis</span>
+                <p className="text-gray-400 text-sm">Bank-level security for your data</p>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 bg-primary rounded-full" />
-              <span className="text-gray-300">24/7 financial guidance</span>
+            <div className="flex items-center gap-4 group">
+              <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
+                <Users className="size-5 text-emerald-400" />
+              </div>
+              <div>
+                <span className="text-white font-medium">24/7 financial guidance</span>
+                <p className="text-gray-400 text-sm">Always available when you need help</p>
+              </div>
             </div>
           </div>
 
-          {/* Simple Stats */}
-          <div className="mt-16 grid grid-cols-2 gap-8">
-            <div>
-              <div className="text-3xl font-bold text-white mb-1">10K+</div>
-              <div className="text-gray-400 text-sm">Users</div>
+          {/* Enhanced Stats */}
+          <div className="grid grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-emerald-400 mb-1">10K+</div>
+              <div className="text-gray-400 text-sm">Active Users</div>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-white mb-1">95%</div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-emerald-400 mb-1">95%</div>
               <div className="text-gray-400 text-sm">Satisfaction</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-emerald-400 mb-1">$2M+</div>
+              <div className="text-gray-400 text-sm">Managed</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Side - Clean Auth Form */}
+      {/* Right Side - Enhanced Auth Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-900">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <TrendingUp className="size-5 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                <TrendingUp className="size-6 text-white" />
               </div>
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-emerald-100 bg-clip-text text-transparent">
                 FinIQ.ai
               </h1>
             </div>
           </div>
 
           {/* Auth Card */}
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-8">
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-8 shadow-2xl">
             <div className="mb-8">
               <h2 className="text-2xl font-semibold text-white mb-2">
-                {isSignUp ? 'Join FinIQ.ai' : 'Sign in'}
+                {isSignUp ? 'Join FinIQ.ai' : 'Welcome back'}
               </h2>
               <p className="text-gray-400">
                 {isSignUp 
-                  ? 'Create your account to get started' 
-                  : 'Welcome back to your financial dashboard'
+                  ? 'Create your account to get started with AI financial guidance' 
+                  : 'Sign in to access your financial dashboard'
                 }
               </p>
             </div>
@@ -211,7 +242,7 @@ const AuthForm: React.FC = () => {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'fullName')}
-                    className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-primary focus:ring-primary"
+                    className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all duration-200"
                     required
                   />
                 </div>
@@ -219,7 +250,7 @@ const AuthForm: React.FC = () => {
 
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  Email
+                  Email address
                 </label>
                 <Input
                   ref={emailRef}
@@ -229,7 +260,7 @@ const AuthForm: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, 'email')}
-                  className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-primary focus:ring-primary"
+                  className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all duration-200"
                   required
                 />
               </div>
@@ -247,14 +278,14 @@ const AuthForm: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'password')}
-                    className="h-12 pr-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-primary focus:ring-primary"
+                    className="h-12 pr-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all duration-200"
                     required
                     minLength={6}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
                   >
                     {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
                   </button>
@@ -267,23 +298,23 @@ const AuthForm: React.FC = () => {
               </div>
 
               {error && (
-                <div className="flex items-start gap-3 p-4 bg-red-900/50 border border-red-700 rounded-lg">
+                <div className="flex items-start gap-3 p-4 bg-red-900/50 border border-red-700/50 rounded-lg">
                   <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-red-400" />
                   <span className="text-red-300 text-sm">{error}</span>
                 </div>
               )}
 
               {success && (
-                <div className="flex items-start gap-3 p-4 bg-green-900/50 border border-green-700 rounded-lg">
-                  <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-green-400" />
-                  <span className="text-green-300 text-sm">{success}</span>
+                <div className="flex items-start gap-3 p-4 bg-emerald-900/50 border border-emerald-700/50 rounded-lg">
+                  <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-emerald-400" />
+                  <span className="text-emerald-300 text-sm">{success}</span>
                 </div>
               )}
 
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg transition-colors"
+                className="w-full h-12 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-emerald-500/25"
               >
                 {isLoading ? (
                   <Loader2 className="size-5 animate-spin mr-2" />
@@ -301,7 +332,7 @@ const AuthForm: React.FC = () => {
                   setSuccess(null)
                   setPassword('')
                 }}
-                className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+                className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors"
               >
                 {isSignUp 
                   ? 'Already have an account? Sign in' 
@@ -313,8 +344,8 @@ const AuthForm: React.FC = () => {
             {/* Keyboard Navigation Hint */}
             <div className="mt-6 text-center">
               <div className="inline-flex items-center gap-2 text-xs text-gray-500">
-                <kbd className="px-2 py-1 bg-gray-700 rounded text-gray-400">↑</kbd>
-                <kbd className="px-2 py-1 bg-gray-700 rounded text-gray-400">↓</kbd>
+                <kbd className="px-2 py-1 bg-gray-700 rounded text-gray-400 border border-gray-600">↑</kbd>
+                <kbd className="px-2 py-1 bg-gray-700 rounded text-gray-400 border border-gray-600">↓</kbd>
                 <span>Navigate fields</span>
               </div>
             </div>
@@ -322,9 +353,10 @@ const AuthForm: React.FC = () => {
 
           {/* Security Notice */}
           <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              Secured with bank-level encryption
-            </p>
+            <div className="inline-flex items-center gap-2 text-xs text-gray-500">
+              <Shield className="size-3" />
+              <span>Secured with bank-level encryption</span>
+            </div>
           </div>
         </div>
       </div>
@@ -375,11 +407,11 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4 mx-auto">
+          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4 mx-auto shadow-lg">
             <Loader2 className="size-6 animate-spin text-white" />
           </div>
           <h3 className="text-white text-lg font-medium mb-2">Loading FinIQ.ai</h3>
-          <p className="text-gray-400">Preparing your dashboard...</p>
+          <p className="text-gray-400">Preparing your financial dashboard...</p>
         </div>
       </div>
     )
