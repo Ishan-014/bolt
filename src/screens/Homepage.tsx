@@ -711,9 +711,9 @@ export const Homepage: React.FC = () => {
                       onClick={handleSignOut}
                       variant="destructive"
                       disabled={isSigningOut}
-                      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+                      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md text-xs"
                     >
-                      <LogOut className="size-4" />
+                      <LogOut className="size-3" />
                       {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                     </Button>
                   </div>
@@ -747,7 +747,7 @@ export const Homepage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex">
+    <div className="h-screen bg-gray-900 flex overflow-hidden">
       {/* Left Sidebar - Financial Overview (Same width as Jargon Guide) */}
       <div className="w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-hidden">
         <div className="mb-4">
@@ -878,9 +878,9 @@ export const Homepage: React.FC = () => {
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative overflow-hidden">
         {/* Dashboard Navigation */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4">
+        <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
           <div className="flex gap-2 overflow-x-auto">
             {dashboardOptions.map((option) => (
               <button
@@ -905,7 +905,7 @@ export const Homepage: React.FC = () => {
         </div>
 
         {/* Video Consultation Section */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4">
+        <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
           <div className="flex items-center justify-center">
             <Button
               onClick={startVideoConsultation}

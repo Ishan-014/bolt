@@ -188,7 +188,7 @@ export const JargonGuide: React.FC = () => {
       </div>
 
       {/* Terms List with Hidden Scrollbar */}
-      <div className="jargon-scroll-container overflow-y-auto" style={{ height: 'calc(100vh - 400px)' }}>
+      <div className="jargon-scroll-container overflow-y-auto" style={{ height: 'calc(100vh - 300px)' }}>
         <div className="space-y-3">
           {filteredTerms.map((term, index) => (
             <div key={index} className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
@@ -215,13 +215,6 @@ export const JargonGuide: React.FC = () => {
           <p className="text-gray-400 text-sm">No terms found matching your search.</p>
         </div>
       )}
-
-      <div className="mt-8 p-4 bg-green-600/10 border border-green-600/20 rounded-lg">
-        <h3 className="text-green-400 font-semibold text-sm mb-2">💡 Pro Tip</h3>
-        <p className="text-gray-300 text-xs">
-          Ask your AI mentor to explain any financial term you don't understand. They can provide personalized examples based on your situation!
-        </p>
-      </div>
     </div>
   );
 };
