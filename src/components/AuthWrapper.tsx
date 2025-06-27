@@ -96,28 +96,120 @@ const AuthForm: React.FC = () => {
     setSuccess(null)
 
     try {
-      // Create a temporary guest account
+      // Create a temporary guest account with a simpler approach
       const timestamp = Date.now()
-      const guestEmail = `guest_${timestamp}@finiq.ai`
-      const guestPassword = `guest_${Math.random().toString(36).substring(7)}_${timestamp}`
+      const randomId = Math.random().toString(36).substring(7)
+      const guestEmail = `guest_${timestamp}_${randomId}@finiq.ai`
+      const guestPassword = `guest_${randomId}_${timestamp}`
       
-      console.log('Creating guest account...')
-      await signUp(guestEmail, guestPassword, 'Guest User')
-      setSuccess('Guest account created! Signing you in...')
+      console.log('Creating guest account with email:', guestEmail)
       
-      // Wait a moment then sign in
-      setTimeout(async () => {
+      // First, try to sign up the guest user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: guestEmail,
+        password: guestPassword,
+        options: {
+          data: {
+            full_name: 'Guest User',
+          },
+        },
+      })
+
+      if (signUpError) {
+        console.error('Guest signup error:', signUpError)
+        throw new Error(`Failed to create guest account: ${signUpError.message}`)
+      }
+
+      console.log('Guest signup successful:', signUpData)
+      
+      // If signup was successful and user is immediately available (no email confirmation)
+      if (signUpData.user && signUpData.session) {
+        console.log('Guest user signed in immediately')
+        setSuccess('Guest account created and signed in successfully!')
+        
+        // Create user profile
         try {
-          await signIn(guestEmail, guestPassword)
-        } catch (signInError) {
-          console.error('Guest sign in error:', signInError)
-          setError('Failed to sign in with guest account. Please try again.')
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert({
+              id: signUpData.user.id,
+              email: signUpData.user.email!,
+              full_name: 'Guest User',
+            })
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError)
+            // Don't throw here as the user is already signed in
+          } else {
+            console.log('Guest user profile created successfully')
+          }
+        } catch (profileErr) {
+          console.error('Profile creation failed:', profileErr)
+          // Don't throw here as the user is already signed in
         }
-      }, 1000)
+        
+        return
+      }
+
+      // If email confirmation is required, try to sign in anyway
+      if (signUpData.user && !signUpData.session) {
+        console.log('Email confirmation required, attempting sign in...')
+        
+        // Wait a moment for the user to be fully created
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        try {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: guestEmail,
+            password: guestPassword,
+          })
+
+          if (signInError) {
+            console.error('Guest sign in error:', signInError)
+            
+            // If email not confirmed, show a helpful message
+            if (signInError.message.includes('Email not confirmed')) {
+              setError('Guest account created but email confirmation is required. Please disable email confirmation in your Supabase settings or try manual signup.')
+            } else {
+              throw new Error(`Failed to sign in: ${signInError.message}`)
+            }
+            return
+          }
+
+          if (signInData.user) {
+            console.log('Guest sign in successful')
+            setSuccess('Guest account created and signed in successfully!')
+            
+            // Create user profile
+            try {
+              const { error: profileError } = await supabase
+                .from('users')
+                .insert({
+                  id: signInData.user.id,
+                  email: signInData.user.email!,
+                  full_name: 'Guest User',
+                })
+
+              if (profileError) {
+                console.error('Profile creation error:', profileError)
+                // Don't throw here as the user is already signed in
+              } else {
+                console.log('Guest user profile created successfully')
+              }
+            } catch (profileErr) {
+              console.error('Profile creation failed:', profileErr)
+              // Don't throw here as the user is already signed in
+            }
+          }
+        } catch (signInErr) {
+          console.error('Guest sign in failed:', signInErr)
+          throw signInErr
+        }
+      }
       
     } catch (err: any) {
       console.error('Guest access error:', err)
-      setError('Failed to create guest account. Please try signing up manually.')
+      setError(`Failed to create guest account: ${err.message || 'Unknown error'}. Please try signing up manually.`)
     } finally {
       setIsLoading(false)
     }
