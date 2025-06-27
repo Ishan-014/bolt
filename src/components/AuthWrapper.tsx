@@ -73,11 +73,18 @@ const AuthForm: React.FC = () => {
     try {
       if (isSignUp) {
         console.log('Starting sign up process...')
-        await signUp(email, password, fullName)
-        setSuccess('Account created successfully! You can now sign in.')
-        // Switch to sign in mode after successful signup
-        setIsSignUp(false)
-        setPassword('')
+        const result = await signUp(email, password, fullName)
+        
+        // Check if user is immediately signed in (email confirmation disabled)
+        if (result.user && result.session) {
+          setSuccess('Account created and signed in successfully!')
+          // User will be automatically redirected by the auth state change
+        } else {
+          // Fallback: try to sign in immediately
+          console.log('Attempting immediate sign in after signup...')
+          await signIn(email, password)
+          setSuccess('Account created and signed in successfully!')
+        }
       } else {
         console.log('Starting sign in process...')
         await signIn(email, password)
@@ -95,8 +102,6 @@ const AuthForm: React.FC = () => {
         } else if (err.message.includes('User already registered')) {
           errorMessage = 'An account with this email already exists. Please sign in instead.'
           setIsSignUp(false)
-        } else if (err.message.includes('Email not confirmed')) {
-          errorMessage = 'Please check your email and click the confirmation link before signing in.'
         } else if (err.message.includes('Password should be at least 6 characters')) {
           errorMessage = 'Password must be at least 6 characters long.'
         } else if (err.message.includes('Unable to validate email address')) {
@@ -222,7 +227,7 @@ const AuthForm: React.FC = () => {
               </h2>
               <p className="text-gray-400">
                 {isSignUp 
-                  ? 'Create your account to get started with AI financial guidance' 
+                  ? 'Create your account and start immediately - no email verification required' 
                   : 'Sign in to access your financial dashboard'
                 }
               </p>
@@ -319,7 +324,7 @@ const AuthForm: React.FC = () => {
                 {isLoading ? (
                   <Loader2 className="size-5 animate-spin mr-2" />
                 ) : null}
-                {isSignUp ? 'Create account' : 'Sign in'}
+                {isSignUp ? 'Create account & sign in' : 'Sign in'}
               </Button>
             </form>
 
@@ -340,6 +345,19 @@ const AuthForm: React.FC = () => {
                 }
               </button>
             </div>
+
+            {/* Instant Access Notice */}
+            {isSignUp && (
+              <div className="mt-6 p-3 bg-green-900/30 border border-green-700/50 rounded-lg">
+                <div className="flex items-center gap-2 text-green-300 text-sm">
+                  <Zap className="size-4" />
+                  <span className="font-medium">Instant Access</span>
+                </div>
+                <p className="text-green-200/80 text-xs mt-1">
+                  No email verification needed - start using FinIQ.ai immediately after signup!
+                </p>
+              </div>
+            )}
 
             {/* Keyboard Navigation Hint */}
             <div className="mt-6 text-center">

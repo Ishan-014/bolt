@@ -42,6 +42,8 @@ export function useAuth() {
           data: {
             full_name: fullName,
           },
+          // Disable email confirmation
+          emailRedirectTo: undefined,
         },
       })
 
@@ -52,10 +54,10 @@ export function useAuth() {
 
       console.log('Sign up successful:', data.user?.email)
 
-      // Create user profile - only if user was created successfully
-      if (data.user && !data.user.email_confirmed_at) {
-        console.log('User created but email not confirmed yet')
-        // For development, we'll still create the profile
+      // Since email confirmation is disabled, the user should be automatically signed in
+      // Create user profile immediately
+      if (data.user) {
+        console.log('Creating user profile immediately after signup')
         try {
           const { error: profileError } = await supabase
             .from('users')
