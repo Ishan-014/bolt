@@ -124,7 +124,7 @@ export const JargonGuide: React.FC = () => {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <BookOpen className="size-5 text-green-400" />
-          <h2 className="text-white text-xl font-bold">Financial Jargon Guide</h2>
+          <h2 className="text-white text-xl font-bold">Jargon Guide</h2>
         </div>
         <p className="text-gray-400 text-sm">Understand financial terms used by your mentor</p>
       </div>
