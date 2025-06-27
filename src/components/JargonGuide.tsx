@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Search, BookOpen, TrendingUp, TrendingDown, DollarSign, Shield, Building, PieChart } from 'lucide-react';
-import { motion, useScroll, useTransform } from 'framer-motion';
 
 interface JargonTerm {
   term: string;
@@ -109,58 +108,9 @@ const categoryColors = {
   general: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20'
 };
 
-interface CardProps {
-  term: JargonTerm;
-  index: number;
-  scrollProgress: number;
-  totalCards: number;
-}
-
-const JargonCard: React.FC<CardProps> = ({ term, index, scrollProgress, totalCards }) => {
-  // Calculate the position of this card in the scroll
-  const cardPosition = index / (totalCards - 1);
-  
-  // Calculate how far this card is from the center (0.5)
-  const distanceFromCenter = Math.abs(cardPosition - scrollProgress);
-  
-  // Create the 3D effect
-  const translateZ = Math.max(-200, Math.min(200, (0.5 - distanceFromCenter) * 400 - 100));
-  const scale = Math.max(0.6, Math.min(1.2, 1 - distanceFromCenter * 2));
-  const opacity = Math.max(0, Math.min(1, 1 - distanceFromCenter * 3));
-  
-  // Calculate rotation for wheel effect
-  const rotateX = (distanceFromCenter - 0.5) * 30;
-  
-  return (
-    <motion.div
-      style={{
-        transform: `translateZ(${translateZ}px) scale(${scale}) rotateX(${rotateX}deg)`,
-        opacity,
-        zIndex: Math.round(translateZ + 200),
-      }}
-      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200 mb-3 will-change-transform"
-    >
-      <div className="flex items-start gap-3 mb-2">
-        <div className={`p-1 rounded border ${categoryColors[term.category]}`}>
-          {term.icon}
-        </div>
-        <div className="flex-1">
-          <h3 className="text-white font-semibold text-sm mb-1">{term.term}</h3>
-          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[term.category]}`}>
-            {term.category}
-          </span>
-        </div>
-      </div>
-      <p className="text-gray-300 text-sm leading-relaxed">{term.definition}</p>
-    </motion.div>
-  );
-};
-
 export const JargonGuide: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const filteredTerms = jargonTerms.filter(term => {
     const matchesSearch = term.term.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -168,15 +118,6 @@ export const JargonGuide: React.FC = () => {
     const matchesCategory = selectedCategory === 'all' || term.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
-
-  // Handle scroll to update progress
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight - container.clientHeight;
-    const progress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
-    setScrollProgress(progress);
-  };
 
   return (
     <div className="w-80 bg-gray-800 border-l border-gray-700 p-6 overflow-hidden">
@@ -246,31 +187,24 @@ export const JargonGuide: React.FC = () => {
         </div>
       </div>
 
-      {/* 3D Scrollable Terms List */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="overflow-y-auto"
-        style={{
-          height: '400px',
-          perspective: '1000px',
-          perspectiveOrigin: 'center center',
-        }}
-      >
-        <div 
-          style={{ 
-            transformStyle: 'preserve-3d',
-            padding: '100px 0', // Add padding to center the first and last cards
-          }}
-        >
+      {/* Terms List with Custom Scrollbar */}
+      <div className="jargon-scroll-container overflow-y-auto" style={{ height: 'calc(100vh - 400px)' }}>
+        <div className="space-y-3">
           {filteredTerms.map((term, index) => (
-            <JargonCard
-              key={`${term.term}-${selectedCategory}`}
-              term={term}
-              index={index}
-              scrollProgress={scrollProgress}
-              totalCards={filteredTerms.length}
-            />
+            <div key={index} className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-start gap-3 mb-2">
+                <div className={`p-1 rounded border ${categoryColors[term.category]}`}>
+                  {term.icon}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-semibold text-sm mb-1">{term.term}</h3>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[term.category]}`}>
+                    {term.category}
+                  </span>
+                </div>
+              </div>
+              <p className="text-gray-300 text-sm leading-relaxed">{term.definition}</p>
+            </div>
           ))}
         </div>
       </div>

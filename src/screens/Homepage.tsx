@@ -748,129 +748,131 @@ export const Homepage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex">
-      {/* Left Sidebar - Financial Overview (Slimmer) */}
-      <div className="w-64 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto">
+      {/* Left Sidebar - Financial Overview (Slimmer) with Custom Scrollbar */}
+      <div className="w-64 bg-gray-800 border-r border-gray-700 p-4 overflow-hidden">
         <div className="mb-4">
           <h2 className="text-white text-lg font-bold mb-1">Financial Overview</h2>
           <p className="text-gray-400 text-xs">Your financial health at a glance</p>
         </div>
 
-        <div className="space-y-3">
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-gray-300 text-xs font-medium">Total Balance</div>
-              <div className="text-green-400"><Wallet className="size-4" /></div>
-            </div>
-            <div className="text-white text-lg font-bold mb-1">$45,230.50</div>
-            <div className="flex items-center gap-1 text-xs text-green-400">
-              <TrendingUp className="size-2" />
-              +2.5%
-            </div>
-          </div>
-
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-gray-300 text-xs font-medium">Monthly Savings</div>
-              <div className="text-green-400"><Target className="size-4" /></div>
-            </div>
-            <div className="text-white text-lg font-bold mb-1">$3,200.00</div>
-            <div className="flex items-center gap-1 text-xs text-green-400">
-              <TrendingUp className="size-2" />
-              +12.3%
-            </div>
-          </div>
-
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-gray-300 text-xs font-medium">Investment Portfolio</div>
-              <div className="text-green-400"><PieChart className="size-4" /></div>
-            </div>
-            <div className="text-white text-lg font-bold mb-1">$28,450.75</div>
-            <div className="flex items-center gap-1 text-xs text-red-400">
-              <TrendingUp className="size-2 rotate-180" />
-              -1.2%
-            </div>
-          </div>
-
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-gray-300 text-xs font-medium">Monthly Income</div>
-              <div className="text-green-400"><DollarSign className="size-4" /></div>
-            </div>
-            <div className="text-white text-lg font-bold mb-1">$8,500.00</div>
-            <div className="flex items-center gap-1 text-xs text-green-400">
-              <TrendingUp className="size-2" />
-              +5.8%
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <h3 className="text-white text-base font-semibold mb-3">Recent Transactions</h3>
-          <div className="space-y-2">
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-white text-xs font-medium">Salary Deposit</div>
-                  <div className="text-gray-400 text-xs">Jan 15, 2025</div>
-                </div>
-                <div className="text-green-400 font-semibold text-xs">+$8,500</div>
-              </div>
-            </div>
-
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-white text-xs font-medium">Investment Purchase</div>
-                  <div className="text-gray-400 text-xs">Jan 12, 2025</div>
-                </div>
-                <div className="text-red-400 font-semibold text-xs">-$2,000</div>
-              </div>
-            </div>
-
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-white text-xs font-medium">Dividend Payment</div>
-                  <div className="text-gray-400 text-xs">Jan 10, 2025</div>
-                </div>
-                <div className="text-green-400 font-semibold text-xs">+$450</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <h3 className="text-white text-base font-semibold mb-3">Goals Progress</h3>
+        <div className="financial-overview-scroll-container overflow-y-auto" style={{ height: 'calc(100vh - 120px)' }}>
           <div className="space-y-3">
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-white text-xs font-medium">Emergency Fund</span>
-                <span className="text-gray-400 text-xs">75%</span>
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-gray-300 text-xs font-medium">Total Balance</div>
+                <div className="text-green-400"><Wallet className="size-4" /></div>
               </div>
-              <div className="w-full bg-gray-600 rounded-full h-1.5">
-                <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '75%' }}></div>
+              <div className="text-white text-lg font-bold mb-1">$45,230.50</div>
+              <div className="flex items-center gap-1 text-xs text-green-400">
+                <TrendingUp className="size-2" />
+                +2.5%
               </div>
-              <div className="text-gray-400 text-xs mt-1">$7,500 / $10,000</div>
             </div>
 
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-white text-xs font-medium">Retirement Fund</span>
-                <span className="text-gray-400 text-xs">45%</span>
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-gray-300 text-xs font-medium">Monthly Savings</div>
+                <div className="text-green-400"><Target className="size-4" /></div>
               </div>
-              <div className="w-full bg-gray-600 rounded-full h-1.5">
-                <div className="bg-green-400 h-1.5 rounded-full" style={{ width: '45%' }}></div>
+              <div className="text-white text-lg font-bold mb-1">$3,200.00</div>
+              <div className="flex items-center gap-1 text-xs text-green-400">
+                <TrendingUp className="size-2" />
+                +12.3%
               </div>
-              <div className="text-gray-400 text-xs mt-1">$45,000 / $100,000</div>
             </div>
-          </div>
-        </div>
 
-        <div className="mt-4 text-center">
-          <div className="inline-flex items-center gap-2 text-xs text-gray-500">
-            <Shield className="size-3" />
-            <span>Secured with bank-level encryption</span>
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-gray-300 text-xs font-medium">Investment Portfolio</div>
+                <div className="text-green-400"><PieChart className="size-4" /></div>
+              </div>
+              <div className="text-white text-lg font-bold mb-1">$28,450.75</div>
+              <div className="flex items-center gap-1 text-xs text-red-400">
+                <TrendingUp className="size-2 rotate-180" />
+                -1.2%
+              </div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-gray-300 text-xs font-medium">Monthly Income</div>
+                <div className="text-green-400"><DollarSign className="size-4" /></div>
+              </div>
+              <div className="text-white text-lg font-bold mb-1">$8,500.00</div>
+              <div className="flex items-center gap-1 text-xs text-green-400">
+                <TrendingUp className="size-2" />
+                +5.8%
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <h3 className="text-white text-base font-semibold mb-3">Recent Transactions</h3>
+              <div className="space-y-2">
+                <div className="bg-gray-700 border border-gray-600 rounded-lg p-2">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-white text-xs font-medium">Salary Deposit</div>
+                      <div className="text-gray-400 text-xs">Jan 15, 2025</div>
+                    </div>
+                    <div className="text-green-400 font-semibold text-xs">+$8,500</div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-700 border border-gray-600 rounded-lg p-2">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-white text-xs font-medium">Investment Purchase</div>
+                      <div className="text-gray-400 text-xs">Jan 12, 2025</div>
+                    </div>
+                    <div className="text-red-400 font-semibold text-xs">-$2,000</div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-700 border border-gray-600 rounded-lg p-2">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-white text-xs font-medium">Dividend Payment</div>
+                      <div className="text-gray-400 text-xs">Jan 10, 2025</div>
+                    </div>
+                    <div className="text-green-400 font-semibold text-xs">+$450</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <h3 className="text-white text-base font-semibold mb-3">Goals Progress</h3>
+              <div className="space-y-3">
+                <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-white text-xs font-medium">Emergency Fund</span>
+                    <span className="text-gray-400 text-xs">75%</span>
+                  </div>
+                  <div className="w-full bg-gray-600 rounded-full h-1.5">
+                    <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '75%' }}></div>
+                  </div>
+                  <div className="text-gray-400 text-xs mt-1">$7,500 / $10,000</div>
+                </div>
+
+                <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-white text-xs font-medium">Retirement Fund</span>
+                    <span className="text-gray-400 text-xs">45%</span>
+                  </div>
+                  <div className="w-full bg-gray-600 rounded-full h-1.5">
+                    <div className="bg-green-400 h-1.5 rounded-full" style={{ width: '45%' }}></div>
+                  </div>
+                  <div className="text-gray-400 text-xs mt-1">$45,000 / $100,000</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 text-center">
+              <div className="inline-flex items-center gap-2 text-xs text-gray-500">
+                <Shield className="size-3" />
+                <span>Secured with bank-level encryption</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -926,80 +928,7 @@ export const Homepage: React.FC = () => {
       </div>
 
       {/* Right Sidebar - Jargon Guide (Slimmer) */}
-      <div className="w-64 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto">
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <BookOpen className="size-4 text-green-400" />
-            <h2 className="text-white text-lg font-bold">Jargon Guide</h2>
-          </div>
-          <p className="text-gray-400 text-xs">Understand financial terms used by your mentor</p>
-        </div>
-
-        {/* Search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 size-3" />
-          <input
-            type="text"
-            placeholder="Search terms..."
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-8 pr-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-green-500 transition-colors text-sm"
-          />
-        </div>
-
-        {/* Category Filter */}
-        <div className="mb-4">
-          <div className="flex flex-wrap gap-1">
-            <button className="px-2 py-1 rounded-full text-xs font-medium transition-colors bg-green-600/20 text-green-400 border border-green-600/30">
-              All
-            </button>
-            <button className="px-2 py-1 rounded-full text-xs font-medium transition-colors bg-gray-700 text-gray-400 border border-gray-600 hover:bg-gray-600">
-              Investment
-            </button>
-            <button className="px-2 py-1 rounded-full text-xs font-medium transition-colors bg-gray-700 text-gray-400 border border-gray-600 hover:bg-gray-600">
-              Banking
-            </button>
-          </div>
-        </div>
-
-        {/* Terms List */}
-        <div className="space-y-2">
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-start gap-2 mb-1">
-              <div className="p-1 rounded border text-green-400 bg-green-400/10 border-green-400/20">
-                <PieChart className="size-3" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-semibold text-xs mb-1">Asset Allocation</h3>
-                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium border text-green-400 bg-green-400/10 border-green-400/20">
-                  investment
-                </span>
-              </div>
-            </div>
-            <p className="text-gray-300 text-xs leading-relaxed">The strategy of dividing investments among different asset categories like stocks, bonds, and cash to optimize risk and return.</p>
-          </div>
-
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-start gap-2 mb-1">
-              <div className="p-1 rounded border text-green-400 bg-green-400/10 border-green-400/20">
-                <TrendingUp className="size-3" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-semibold text-xs mb-1">Compound Interest</h3>
-                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium border text-yellow-400 bg-yellow-400/10 border-yellow-400/20">
-                  general
-                </span>
-              </div>
-            </div>
-            <p className="text-gray-300 text-xs leading-relaxed">Interest calculated on the initial principal and accumulated interest from previous periods. Einstein called it the 'eighth wonder of the world.'</p>
-          </div>
-        </div>
-
-        <div className="mt-6 p-3 bg-green-600/10 border border-green-600/20 rounded-lg">
-          <h3 className="text-green-400 font-semibold text-xs mb-1">💡 Pro Tip</h3>
-          <p className="text-gray-300 text-xs">
-            Ask your AI mentor to explain any financial term you don't understand. They can provide personalized examples based on your situation!
-          </p>
-        </div>
-      </div>
+      <JargonGuide />
     </div>
   );
 };
