@@ -289,31 +289,31 @@ export const Homepage: React.FC = () => {
   const dashboardOptions = [
     {
       id: 'uploaded-documents' as DashboardSection,
-      icon: <Files className="size-4" />,
+      icon: <Files className="size-5" />,
       title: 'Documents',
       count: fileCount
     },
     {
       id: 'reports' as DashboardSection,
-      icon: <BarChart3 className="size-4" />,
+      icon: <BarChart3 className="size-5" />,
       title: 'Reports',
       count: 3
     },
     {
       id: 'chat-history' as DashboardSection,
-      icon: <History className="size-4" />,
+      icon: <History className="size-5" />,
       title: 'History',
       count: 12
     },
     {
       id: 'knowledge-base' as DashboardSection,
-      icon: <Brain className="size-4" />,
+      icon: <Brain className="size-5" />,
       title: 'Knowledge',
       count: null
     },
     {
       id: 'settings' as DashboardSection,
-      icon: <Settings className="size-4" />,
+      icon: <Settings className="size-5" />,
       title: 'Settings',
       count: null
     }
@@ -699,50 +699,57 @@ export const Homepage: React.FC = () => {
       
       {/* Main Content - Persona Chat Interface */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {/* Top Header with User Info */}
+        {/* Top Header with FinIQ.ai Branding and Dashboard */}
         <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-                <TrendingUp className="size-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
-                  FinIQ.ai
-                </h1>
-                {user && (
-                  <div className="flex items-center gap-2 text-gray-400 text-sm">
-                    <User className="size-3" />
-                    <span>Welcome back, {user.user_metadata?.full_name || user.email}</span>
-                  </div>
-                )}
+            {/* Left: FinIQ.ai Branding and User Welcome */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
+                  <TrendingUp className="size-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
+                    FinIQ.ai
+                  </h1>
+                  {user && (
+                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                      <User className="size-3" />
+                      <span>Welcome back, {user.user_metadata?.full_name || user.email}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Dashboard Navigation - Single Line */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
-          <div className="flex gap-2">
-            {dashboardOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => setActiveSection(option.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 whitespace-nowrap ${
-                  activeSection === option.id
-                    ? 'bg-green-600/20 border-green-600/50 text-green-400'
-                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
-                }`}
-              >
-                {option.icon}
-                <span className="text-sm font-medium">{option.title}</span>
-                {option.count !== null && (
-                  <span className="text-xs bg-gray-600 text-gray-300 px-2 py-0.5 rounded-full">
-                    {option.count}
-                  </span>
-                )}
-              </button>
-            ))}
+            {/* Right: Dashboard Navigation - Icons Only with Tooltips */}
+            <div className="flex gap-2">
+              {dashboardOptions.map((option) => (
+                <div key={option.id} className="relative group">
+                  <button
+                    onClick={() => setActiveSection(option.id)}
+                    className={`p-3 rounded-lg border transition-all duration-200 relative ${
+                      activeSection === option.id
+                        ? 'bg-green-600/20 border-green-600/50 text-green-400'
+                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
+                    }`}
+                  >
+                    {option.icon}
+                    {option.count !== null && (
+                      <span className="absolute -top-1 -right-1 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
+                        {option.count}
+                      </span>
+                    )}
+                  </button>
+                  
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                    {option.title}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
