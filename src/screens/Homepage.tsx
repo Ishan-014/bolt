@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/FileUpload';
 import { FileManager } from '@/components/FileManager';
@@ -7,8 +7,12 @@ import { useAtom } from 'jotai';
 import { screenAtom } from '@/store/screens';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserFiles } from '@/hooks/useUserFiles';
+import { conversationAtom } from '@/store/conversation';
+import { createConversation } from '@/api';
+import { apiTokenAtom } from '@/store/tokens';
+import Video from '@/components/Video';
 import { 
-  Video, 
+  Video as VideoIcon, 
   Files, 
   BookOpen, 
   TrendingUp, 
@@ -30,24 +34,168 @@ import {
   History,
   Brain,
   ChevronRight,
-  X
+  X,
+  Camera,
+  Mic,
+  AlertTriangle,
+  MicIcon,
+  MicOffIcon,
+  VideoOffIcon,
+  PhoneIcon,
+  Send
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import {
+  DailyAudio,
+  useDaily,
+  useLocalSessionId,
+  useParticipantIds,
+  useVideoTrack,
+  useAudioTrack,
+  useDevices,
+} from "@daily-co/daily-react";
+import { quantum } from 'ldrs';
+import zoomSound from "@/assets/sounds/zoom.mp3";
+
+quantum.register();
 
 type DashboardSection = 'uploaded-documents' | 'reports' | 'chat-history' | 'knowledge-base' | 'settings' | null;
+type VideoState = 'none' | 'requesting-access' | 'starting-conversation' | 'active-conversation';
 
 export const Homepage: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [activeSection, setActiveSection] = useState<DashboardSection>(null);
+  const [videoState, setVideoState] = useState<VideoState>('none');
+  const [conversation, setConversation] = useAtom(conversationAtom);
+  const [token, setToken] = useAtom(apiTokenAtom);
+  const [hasMediaAccess, setHasMediaAccess] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const [chatMessage, setChatMessage] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [start, setStart] = useState(false);
+
   const { user } = useAuth();
   const { files, getFileCount } = useUserFiles();
+
+  // Daily.co hooks
+  const daily = useDaily();
+  const { currentMic, setMicrophone, setSpeaker } = useDevices();
+  const localSessionId = useLocalSessionId();
+  const localVideo = useVideoTrack(localSessionId);
+  const localAudio = useAudioTrack(localSessionId);
+  const isCameraEnabled = !localVideo.isOff;
+  const isMicEnabled = !localAudio.isOff;
+  const remoteParticipantIds = useParticipantIds({ filter: "remote" });
+
+  const audio = useMemo(() => {
+    const audioObj = new Audio(zoomSound);
+    audioObj.volume = 0.7;
+    return audioObj;
+  }, []);
+
+  // Set the API key automatically
+  React.useEffect(() => {
+    if (!token) {
+      const apiKey = "f840d8e47ab44f0d85e8ca21f24275a8";
+      setToken(apiKey);
+      localStorage.setItem('tavus-token', apiKey);
+    }
+  }, [token, setToken]);
+
+  useEffect(() => {
+    if (remoteParticipantIds.length && !start) {
+      setStart(true);
+      setTimeout(() => daily?.setLocalAudio(true), 4000);
+    }
+  }, [remoteParticipantIds, start]);
+
+  useEffect(() => {
+    if (conversation?.conversation_url && hasMediaAccess) {
+      daily
+        ?.join({
+          url: conversation.conversation_url,
+          startVideoOff: false,
+          startAudioOff: true,
+        })
+        .then(() => {
+          daily?.setLocalVideo(true);
+          daily?.setLocalAudio(false);
+          setVideoState('active-conversation');
+        });
+    }
+  }, [conversation?.conversation_url, hasMediaAccess]);
 
   const handleFileUploadComplete = (uploadedFiles: any[]) => {
     console.log('Files uploaded successfully:', uploadedFiles);
     setActiveSection('uploaded-documents');
   };
 
+  const requestMediaAccess = async () => {
+    try {
+      setIsStarting(true);
+      setMediaError(null);
+      
+      audio.currentTime = 0;
+      await audio.play();
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Request camera and microphone access
+      const res = await daily?.startCamera({
+        startVideoOff: false,
+        startAudioOff: false,
+        audioSource: "default",
+      });
+
+      if (res?.mic && res?.camera) {
+        setHasMediaAccess(true);
+        setVideoState('starting-conversation');
+        
+        // Set default devices
+        // @ts-expect-error deviceId exists in the MediaDeviceInfo
+        const isDefaultMic = res?.mic?.deviceId === "default";
+        // @ts-expect-error deviceId exists in the MediaDeviceInfo
+        const isDefaultSpeaker = res?.speaker?.deviceId === "default";
+
+        if (!isDefaultMic) {
+          setMicrophone("default");
+        }
+        if (!isDefaultSpeaker) {
+          setSpeaker("default");
+        }
+
+        // Start conversation after media access is granted
+        if (token) {
+          const newConversation = await createConversation(token);
+          setConversation(newConversation);
+        }
+      } else {
+        throw new Error("Failed to access camera or microphone");
+      }
+    } catch (error) {
+      console.error("Media access error:", error);
+      setMediaError("Please allow camera and microphone access to continue with the video call.");
+      setVideoState('requesting-access');
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
   const startVideoConsultation = () => {
-    setScreenState({ currentScreen: "conversation" });
+    setVideoState('requesting-access');
+    setActiveSection(null); // Close any open sections
+  };
+
+  const closeVideoConsultation = () => {
+    if (daily) {
+      daily.leave();
+    }
+    setVideoState('none');
+    setConversation(null);
+    setHasMediaAccess(false);
+    setStart(false);
   };
 
   const openSettings = () => {
@@ -57,6 +205,51 @@ export const Homepage: React.FC = () => {
   const closeSection = () => {
     setActiveSection(null);
   };
+
+  const toggleVideo = useCallback(() => {
+    daily?.setLocalVideo(!isCameraEnabled);
+  }, [daily, isCameraEnabled]);
+
+  const toggleAudio = useCallback(() => {
+    daily?.setLocalAudio(!isMicEnabled);
+  }, [daily, isMicEnabled]);
+
+  const sendTextMessage = useCallback(() => {
+    if (chatMessage.trim() && conversation?.conversation_id) {
+      daily?.sendAppMessage({
+        message_type: "conversation",
+        event_type: "conversation.echo",
+        conversation_id: conversation.conversation_id,
+        properties: {
+          modality: "text",
+          text: chatMessage.trim(),
+        },
+      });
+      setChatMessage("");
+    }
+  }, [chatMessage, conversation, daily]);
+
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendTextMessage();
+    }
+  }, [sendTextMessage]);
+
+  const startVoiceRecording = useCallback(() => {
+    if (hasMediaAccess) {
+      setIsListening(true);
+      daily?.setLocalAudio(true);
+      
+      setTimeout(() => {
+        setIsListening(false);
+      }, 10000);
+    }
+  }, [daily, hasMediaAccess]);
+
+  const stopVoiceRecording = useCallback(() => {
+    setIsListening(false);
+  }, []);
 
   const fileCount = getFileCount();
 
@@ -92,6 +285,271 @@ export const Homepage: React.FC = () => {
       count: null
     }
   ];
+
+  const renderVideoConsultation = () => {
+    if (videoState === 'none') return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex">
+        {/* Left Sidebar - Financial Overview */}
+        <div className="w-80 bg-gray-800 border-r border-gray-700 p-6 overflow-y-auto">
+          <div className="mb-6">
+            <h2 className="text-white text-xl font-bold mb-2">Financial Overview</h2>
+            <p className="text-gray-400 text-sm">Your financial health at a glance</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-300 text-sm font-medium">Total Balance</div>
+                <div className="text-green-400"><Wallet className="size-5" /></div>
+              </div>
+              <div className="text-white text-xl font-bold mb-1">$45,230.50</div>
+              <div className="flex items-center gap-1 text-sm text-green-400">
+                <TrendingUp className="size-3" />
+                +2.5%
+              </div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-300 text-sm font-medium">Monthly Savings</div>
+                <div className="text-green-400"><Target className="size-5" /></div>
+              </div>
+              <div className="text-white text-xl font-bold mb-1">$3,200.00</div>
+              <div className="flex items-center gap-1 text-sm text-green-400">
+                <TrendingUp className="size-3" />
+                +12.3%
+              </div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-300 text-sm font-medium">Investment Portfolio</div>
+                <div className="text-green-400"><PieChart className="size-5" /></div>
+              </div>
+              <div className="text-white text-xl font-bold mb-1">$28,450.75</div>
+              <div className="flex items-center gap-1 text-sm text-red-400">
+                <TrendingUp className="size-3 rotate-180" />
+                -1.2%
+              </div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-300 text-sm font-medium">Monthly Income</div>
+                <div className="text-green-400"><DollarSign className="size-5" /></div>
+              </div>
+              <div className="text-white text-xl font-bold mb-1">$8,500.00</div>
+              <div className="flex items-center gap-1 text-sm text-green-400">
+                <TrendingUp className="size-3" />
+                +5.8%
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Video Area */}
+        <div className="flex-1 relative bg-black">
+          {videoState === 'requesting-access' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center max-w-md">
+                {isStarting ? (
+                  <>
+                    <l-quantum size="45" speed="1.75" color="white"></l-quantum>
+                    <p className="text-white text-lg mt-4">Requesting access...</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-8">
+                      <h1 className="text-white text-2xl font-bold mb-4">
+                        Start Your Financial Consultation
+                      </h1>
+                      <p className="text-white/70 text-base mb-8">
+                        To begin your video call with your AI financial mentor, please grant access to your camera and microphone.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-4 mb-8">
+                      <div className="flex items-center gap-4 bg-black/20 border border-white/10 rounded-lg p-4">
+                        <div className="bg-green-600/20 p-3 rounded-full">
+                          <Camera className="size-6 text-green-400" />
+                        </div>
+                        <div className="text-left">
+                          <h3 className="text-white font-semibold">Camera Access</h3>
+                          <p className="text-white/60 text-sm">Required for video consultation</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 bg-black/20 border border-white/10 rounded-lg p-4">
+                        <div className="bg-green-600/20 p-3 rounded-full">
+                          <Mic className="size-6 text-green-400" />
+                        </div>
+                        <div className="text-left">
+                          <h3 className="text-white font-semibold">Microphone Access</h3>
+                          <p className="text-white/60 text-sm">Required for voice interaction</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={requestMediaAccess}
+                      className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold text-lg h-auto"
+                      disabled={isStarting}
+                    >
+                      <Camera className="size-5 mr-2" />
+                      <Mic className="size-5 mr-3" />
+                      Enable Camera & Microphone
+                    </Button>
+
+                    {mediaError && (
+                      <div className="mt-6 flex items-center gap-2 text-wrap rounded-lg border bg-red-500/20 border-red-500/50 p-4 text-red-200 backdrop-blur-sm">
+                        <AlertTriangle className="size-5 flex-shrink-0" />
+                        <p className="text-sm">{mediaError}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {videoState === 'starting-conversation' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <l-quantum size="45" speed="1.75" color="white"></l-quantum>
+                <p className="text-white text-lg mt-4">Connecting to your financial mentor...</p>
+              </div>
+            </div>
+          )}
+
+          {videoState === 'active-conversation' && (
+            <>
+              {remoteParticipantIds?.length > 0 ? (
+                <Video
+                  id={remoteParticipantIds[0]}
+                  className="size-full"
+                  tileClassName="!object-cover"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <l-quantum size="45" speed="1.75" color="white"></l-quantum>
+                    <p className="text-white text-lg mt-4">Your financial mentor is joining...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* User video - smaller overlay */}
+              {localSessionId && (
+                <Video
+                  id={localSessionId}
+                  tileClassName="!object-cover"
+                  className={cn(
+                    "absolute bottom-32 right-4 aspect-video h-32 w-20 overflow-hidden rounded-lg border border-white/20 sm:bottom-32 lg:h-auto lg:w-40"
+                  )}
+                />
+              )}
+
+              {/* Chat Interface - Bottom */}
+              <div className="absolute bottom-0 left-0 right-0 bg-black/80 backdrop-blur-sm border-t border-white/10 p-4">
+                <div className="max-w-4xl mx-auto">
+                  <div className="flex items-center gap-3">
+                    {/* Text Input */}
+                    <div className="flex-1 relative">
+                      <Input
+                        value={chatMessage}
+                        onChange={(e) => setChatMessage(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Type your financial question or use voice..."
+                        className="bg-black/40 border-white/20 text-white placeholder-white/60 pr-12 h-12 rounded-full"
+                        style={{ fontFamily: "'Source Code Pro', monospace" }}
+                      />
+                      <Button
+                        onClick={sendTextMessage}
+                        disabled={!chatMessage.trim()}
+                        className="absolute right-1 top-1 h-10 w-10 rounded-full bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        size="icon"
+                      >
+                        <Send className="size-4" />
+                      </Button>
+                    </div>
+
+                    {/* Voice Button */}
+                    <Button
+                      onMouseDown={startVoiceRecording}
+                      onMouseUp={stopVoiceRecording}
+                      onMouseLeave={stopVoiceRecording}
+                      className={cn(
+                        "h-12 w-12 rounded-full transition-all duration-200",
+                        isListening 
+                          ? "bg-red-500 hover:bg-red-600 animate-pulse" 
+                          : "bg-green-600 hover:bg-green-700"
+                      )}
+                      size="icon"
+                    >
+                      <Mic className="size-5" />
+                    </Button>
+
+                    {/* Video Controls */}
+                    <div className="flex gap-2">
+                      <Button
+                        size="icon"
+                        className="h-12 w-12 rounded-full border border-white/20 bg-black/40 backdrop-blur-sm hover:bg-black/60"
+                        variant="secondary"
+                        onClick={toggleAudio}
+                      >
+                        {!isMicEnabled ? (
+                          <MicOffIcon className="size-5" />
+                        ) : (
+                          <MicIcon className="size-5" />
+                        )}
+                      </Button>
+                      <Button
+                        size="icon"
+                        className="h-12 w-12 rounded-full border border-white/20 bg-black/40 backdrop-blur-sm hover:bg-black/60"
+                        variant="secondary"
+                        onClick={toggleVideo}
+                      >
+                        {!isCameraEnabled ? (
+                          <VideoOffIcon className="size-5" />
+                        ) : (
+                          <VideoIcon className="size-5" />
+                        )}
+                      </Button>
+                      <Button
+                        size="icon"
+                        className="h-12 w-12 rounded-full bg-red-600 hover:bg-red-700"
+                        variant="secondary"
+                        onClick={closeVideoConsultation}
+                      >
+                        <PhoneIcon className="size-5 rotate-[135deg]" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <DailyAudio />
+            </>
+          )}
+
+          {/* Close button - always visible */}
+          <Button
+            onClick={closeVideoConsultation}
+            variant="outline"
+            size="icon"
+            className="absolute top-6 right-6 size-12 border-0 bg-black/40 backdrop-blur-sm hover:bg-black/60"
+          >
+            <X className="size-6" />
+          </Button>
+        </div>
+
+        {/* Right Sidebar - Jargon Guide */}
+        <JargonGuide />
+      </div>
+    );
+  };
 
   const renderSectionContent = () => {
     switch (activeSection) {
@@ -325,188 +783,193 @@ export const Homepage: React.FC = () => {
         );
 
       default:
-        return null; // Return nothing when no section is selected
+        return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex">
-      {/* Left Sidebar - Financial Overview (without persona button) */}
-      <div className="w-80 bg-gray-800 border-r border-gray-700 p-6 overflow-y-auto">
-        <div className="mb-6">
-          <h2 className="text-white text-xl font-bold mb-2">Financial Overview</h2>
-          <p className="text-gray-400 text-sm">Your financial health at a glance</p>
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-300 text-sm font-medium">Total Balance</div>
-              <div className="text-green-400"><Wallet className="size-5" /></div>
-            </div>
-            <div className="text-white text-xl font-bold mb-1">$45,230.50</div>
-            <div className="flex items-center gap-1 text-sm text-green-400">
-              <TrendingUp className="size-3" />
-              +2.5%
-            </div>
+    <>
+      <div className="min-h-screen bg-gray-900 flex">
+        {/* Left Sidebar - Financial Overview */}
+        <div className="w-80 bg-gray-800 border-r border-gray-700 p-6 overflow-y-auto">
+          <div className="mb-6">
+            <h2 className="text-white text-xl font-bold mb-2">Financial Overview</h2>
+            <p className="text-gray-400 text-sm">Your financial health at a glance</p>
           </div>
 
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-300 text-sm font-medium">Monthly Savings</div>
-              <div className="text-green-400"><Target className="size-5" /></div>
-            </div>
-            <div className="text-white text-xl font-bold mb-1">$3,200.00</div>
-            <div className="flex items-center gap-1 text-sm text-green-400">
-              <TrendingUp className="size-3" />
-              +12.3%
-            </div>
-          </div>
-
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-300 text-sm font-medium">Investment Portfolio</div>
-              <div className="text-green-400"><PieChart className="size-5" /></div>
-            </div>
-            <div className="text-white text-xl font-bold mb-1">$28,450.75</div>
-            <div className="flex items-center gap-1 text-sm text-red-400">
-              <TrendingUp className="size-3 rotate-180" />
-              -1.2%
-            </div>
-          </div>
-
-          <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-300 text-sm font-medium">Monthly Income</div>
-              <div className="text-green-400"><DollarSign className="size-5" /></div>
-            </div>
-            <div className="text-white text-xl font-bold mb-1">$8,500.00</div>
-            <div className="flex items-center gap-1 text-sm text-green-400">
-              <TrendingUp className="size-3" />
-              +5.8%
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <h3 className="text-white text-lg font-semibold mb-4">Recent Transactions</h3>
-          <div className="space-y-3">
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-white text-sm font-medium">Salary Deposit</div>
-                  <div className="text-gray-400 text-xs">Jan 15, 2025</div>
-                </div>
-                <div className="text-green-400 font-semibold">+$8,500</div>
-              </div>
-            </div>
-
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-white text-sm font-medium">Investment Purchase</div>
-                  <div className="text-gray-400 text-xs">Jan 12, 2025</div>
-                </div>
-                <div className="text-red-400 font-semibold">-$2,000</div>
-              </div>
-            </div>
-
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-white text-sm font-medium">Dividend Payment</div>
-                  <div className="text-gray-400 text-xs">Jan 10, 2025</div>
-                </div>
-                <div className="text-green-400 font-semibold">+$450</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <h3 className="text-white text-lg font-semibold mb-4">Goals Progress</h3>
           <div className="space-y-4">
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-white text-sm font-medium">Emergency Fund</span>
-                <span className="text-gray-400 text-sm">75%</span>
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-300 text-sm font-medium">Total Balance</div>
+                <div className="text-green-400"><Wallet className="size-5" /></div>
               </div>
-              <div className="w-full bg-gray-600 rounded-full h-2">
-                <div className="bg-green-500 h-2 rounded-full" style={{ width: '75%' }}></div>
+              <div className="text-white text-xl font-bold mb-1">$45,230.50</div>
+              <div className="flex items-center gap-1 text-sm text-green-400">
+                <TrendingUp className="size-3" />
+                +2.5%
               </div>
-              <div className="text-gray-400 text-xs mt-1">$7,500 / $10,000</div>
             </div>
 
-            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-white text-sm font-medium">Retirement Fund</span>
-                <span className="text-gray-400 text-sm">45%</span>
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-300 text-sm font-medium">Monthly Savings</div>
+                <div className="text-green-400"><Target className="size-5" /></div>
               </div>
-              <div className="w-full bg-gray-600 rounded-full h-2">
-                <div className="bg-green-400 h-2 rounded-full" style={{ width: '45%' }}></div>
+              <div className="text-white text-xl font-bold mb-1">$3,200.00</div>
+              <div className="flex items-center gap-1 text-sm text-green-400">
+                <TrendingUp className="size-3" />
+                +12.3%
               </div>
-              <div className="text-gray-400 text-xs mt-1">$45,000 / $100,000</div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-300 text-sm font-medium">Investment Portfolio</div>
+                <div className="text-green-400"><PieChart className="size-5" /></div>
+              </div>
+              <div className="text-white text-xl font-bold mb-1">$28,450.75</div>
+              <div className="flex items-center gap-1 text-sm text-red-400">
+                <TrendingUp className="size-3 rotate-180" />
+                -1.2%
+              </div>
+            </div>
+
+            <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-300 text-sm font-medium">Monthly Income</div>
+                <div className="text-green-400"><DollarSign className="size-5" /></div>
+              </div>
+              <div className="text-white text-xl font-bold mb-1">$8,500.00</div>
+              <div className="flex items-center gap-1 text-sm text-green-400">
+                <TrendingUp className="size-3" />
+                +5.8%
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <h3 className="text-white text-lg font-semibold mb-4">Recent Transactions</h3>
+            <div className="space-y-3">
+              <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-white text-sm font-medium">Salary Deposit</div>
+                    <div className="text-gray-400 text-xs">Jan 15, 2025</div>
+                  </div>
+                  <div className="text-green-400 font-semibold">+$8,500</div>
+                </div>
+              </div>
+
+              <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-white text-sm font-medium">Investment Purchase</div>
+                    <div className="text-gray-400 text-xs">Jan 12, 2025</div>
+                  </div>
+                  <div className="text-red-400 font-semibold">-$2,000</div>
+                </div>
+              </div>
+
+              <div className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-white text-sm font-medium">Dividend Payment</div>
+                    <div className="text-gray-400 text-xs">Jan 10, 2025</div>
+                  </div>
+                  <div className="text-green-400 font-semibold">+$450</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <h3 className="text-white text-lg font-semibold mb-4">Goals Progress</h3>
+            <div className="space-y-4">
+              <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-white text-sm font-medium">Emergency Fund</span>
+                  <span className="text-gray-400 text-sm">75%</span>
+                </div>
+                <div className="w-full bg-gray-600 rounded-full h-2">
+                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '75%' }}></div>
+                </div>
+                <div className="text-gray-400 text-xs mt-1">$7,500 / $10,000</div>
+              </div>
+
+              <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-white text-sm font-medium">Retirement Fund</span>
+                  <span className="text-gray-400 text-sm">45%</span>
+                </div>
+                <div className="w-full bg-gray-600 rounded-full h-2">
+                  <div className="bg-green-400 h-2 rounded-full" style={{ width: '45%' }}></div>
+                </div>
+                <div className="text-gray-400 text-xs mt-1">$45,000 / $100,000</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center">
+            <div className="inline-flex items-center gap-2 text-xs text-gray-500">
+              <Shield className="size-3" />
+              <span>Secured with bank-level encryption</span>
             </div>
           </div>
         </div>
-
-        <div className="mt-6 text-center">
-          <div className="inline-flex items-center gap-2 text-xs text-gray-500">
-            <Shield className="size-3" />
-            <span>Secured with bank-level encryption</span>
+        
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          {/* Compact Dashboard Navigation */}
+          <div className="bg-gray-800 border-b border-gray-700 p-4">
+            <div className="flex gap-2 overflow-x-auto">
+              {dashboardOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setActiveSection(option.id)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 whitespace-nowrap ${
+                    activeSection === option.id
+                      ? 'bg-green-600/20 border-green-600/50 text-green-400'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
+                  }`}
+                >
+                  {option.icon}
+                  <span className="text-sm font-medium">{option.title}</span>
+                  {option.count !== null && (
+                    <span className="text-xs bg-gray-600 text-gray-300 px-2 py-0.5 rounded-full">
+                      {option.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Compact Dashboard Navigation */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4">
-          <div className="flex gap-2 overflow-x-auto">
-            {dashboardOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => setActiveSection(option.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 whitespace-nowrap ${
-                  activeSection === option.id
-                    ? 'bg-green-600/20 border-green-600/50 text-green-400'
-                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
-                }`}
+
+          {/* Video Consultation Section - Below Dashboard */}
+          <div className="bg-gray-800 border-b border-gray-700 p-4">
+            <div className="flex items-center justify-center">
+              <Button
+                onClick={startVideoConsultation}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-green-600/25 transition-all duration-200"
               >
-                {option.icon}
-                <span className="text-sm font-medium">{option.title}</span>
-                {option.count !== null && (
-                  <span className="text-xs bg-gray-600 text-gray-300 px-2 py-0.5 rounded-full">
-                    {option.count}
-                  </span>
-                )}
-              </button>
-            ))}
+                <VideoIcon className="size-5 mr-2" />
+                Start Video Consultation
+                <ArrowRight className="size-5 ml-2" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 p-4 overflow-y-auto">
+            {renderSectionContent()}
           </div>
         </div>
 
-        {/* Video Consultation Section - Below Dashboard */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4">
-          <div className="flex items-center justify-center">
-            <Button
-              onClick={startVideoConsultation}
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-green-600/25 transition-all duration-200"
-            >
-              <Video className="size-5 mr-2" />
-              Start Video Consultation
-              <ArrowRight className="size-5 ml-2" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="flex-1 p-4 overflow-y-auto">
-          {renderSectionContent()}
-        </div>
+        {/* Right Sidebar - Jargon Guide */}
+        <JargonGuide />
       </div>
 
-      {/* Right Sidebar - Jargon Guide */}
-      <JargonGuide />
-    </div>
+      {/* Video Consultation Overlay */}
+      {renderVideoConsultation()}
+    </>
   );
 };
