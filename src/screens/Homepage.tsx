@@ -289,31 +289,31 @@ export const Homepage: React.FC = () => {
   const dashboardOptions = [
     {
       id: 'uploaded-documents' as DashboardSection,
-      icon: <Files className="size-5" />,
+      icon: <Files className="size-4" />,
       title: 'Documents',
       count: fileCount
     },
     {
       id: 'reports' as DashboardSection,
-      icon: <BarChart3 className="size-5" />,
+      icon: <BarChart3 className="size-4" />,
       title: 'Reports',
       count: 3
     },
     {
       id: 'chat-history' as DashboardSection,
-      icon: <History className="size-5" />,
+      icon: <History className="size-4" />,
       title: 'History',
       count: 12
     },
     {
       id: 'knowledge-base' as DashboardSection,
-      icon: <Brain className="size-5" />,
+      icon: <Brain className="size-4" />,
       title: 'Knowledge',
       count: null
     },
     {
       id: 'settings' as DashboardSection,
-      icon: <Settings className="size-5" />,
+      icon: <Settings className="size-4" />,
       title: 'Settings',
       count: null
     }
@@ -531,7 +531,7 @@ export const Homepage: React.FC = () => {
                       onClick={handleSignOut}
                       variant="destructive"
                       disabled={isSigningOut}
-                      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md text-xs"
+                      className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-md text-xs h-7"
                     >
                       <LogOut className="size-3" />
                       {isSigningOut ? 'Signing Out...' : 'Sign Out'}
@@ -699,22 +699,22 @@ export const Homepage: React.FC = () => {
       
       {/* Main Content - Persona Chat Interface */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {/* Top Header with FinIQ.ai Branding and Dashboard */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
+        {/* Top Header with FinIQ.ai Branding and Dashboard - Reduced Height */}
+        <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex-shrink-0">
           <div className="flex items-center justify-between">
             {/* Left: FinIQ.ai Branding and User Welcome */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-                  <TrendingUp className="size-6 text-white" />
+                <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
+                  <TrendingUp className="size-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
                     FinIQ.ai
                   </h1>
                   {user && (
-                    <div className="flex items-center gap-2 text-gray-400 text-sm">
-                      <User className="size-3" />
+                    <div className="flex items-center gap-2 text-gray-400 text-xs">
+                      <User className="size-2.5" />
                       <span>Welcome back, {user.user_metadata?.full_name || user.email}</span>
                     </div>
                   )}
@@ -722,13 +722,13 @@ export const Homepage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Dashboard Navigation - Icons Only with Tooltips */}
-            <div className="flex gap-2">
+            {/* Right: Dashboard Navigation - Icons Only with Tooltips - Reduced Size */}
+            <div className="flex gap-1.5">
               {dashboardOptions.map((option) => (
                 <div key={option.id} className="relative group">
                   <button
                     onClick={() => setActiveSection(option.id)}
-                    className={`p-3 rounded-lg border transition-all duration-200 relative ${
+                    className={`p-2 rounded-lg border transition-all duration-200 relative ${
                       activeSection === option.id
                         ? 'bg-green-600/20 border-green-600/50 text-green-400'
                         : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
@@ -736,7 +736,7 @@ export const Homepage: React.FC = () => {
                   >
                     {option.icon}
                     {option.count !== null && (
-                      <span className="absolute -top-1 -right-1 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
+                      <span className="absolute -top-1 -right-1 text-xs bg-red-500 text-white px-1 py-0.5 rounded-full min-w-[16px] h-[16px] flex items-center justify-center text-[10px]">
                         {option.count}
                       </span>
                     )}
