@@ -44,7 +44,9 @@ import {
   PhoneIcon,
   Send,
   LogOut,
-  Search
+  Search,
+  Plus,
+  Paperclip
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -63,12 +65,18 @@ import zoomSound from "@/assets/sounds/zoom.mp3";
 quantum.register();
 
 type DashboardSection = 'uploaded-documents' | 'reports' | 'chat-history' | 'knowledge-base' | 'settings' | null;
-type VideoState = 'none' | 'requesting-access' | 'starting-conversation' | 'active-conversation';
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  type: 'text' | 'voice';
+}
 
 export const Homepage: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [activeSection, setActiveSection] = useState<DashboardSection>(null);
-  const [videoState, setVideoState] = useState<VideoState>('none');
   const [conversation, setConversation] = useAtom(conversationAtom);
   const [token, setToken] = useAtom(apiTokenAtom);
   const [hasMediaAccess, setHasMediaAccess] = useState(false);
@@ -78,6 +86,8 @@ export const Homepage: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [start, setStart] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isPersonaActive, setIsPersonaActive] = useState(false);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount } = useUserFiles();
@@ -119,13 +129,13 @@ export const Homepage: React.FC = () => {
       daily
         ?.join({
           url: conversation.conversation_url,
-          startVideoOff: false,
+          startVideoOff: true, // No camera needed for user
           startAudioOff: true,
         })
         .then(() => {
-          daily?.setLocalVideo(true);
+          daily?.setLocalVideo(false); // Disable user camera
           daily?.setLocalAudio(false);
-          setVideoState('active-conversation');
+          setIsPersonaActive(true);
         });
     }
   }, [conversation?.conversation_url, hasMediaAccess]);
@@ -135,7 +145,7 @@ export const Homepage: React.FC = () => {
     setActiveSection('uploaded-documents');
   };
 
-  const requestMediaAccess = async () => {
+  const startPersonaChat = async () => {
     try {
       setIsStarting(true);
       setMediaError(null);
@@ -145,16 +155,15 @@ export const Homepage: React.FC = () => {
       
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Request camera and microphone access
+      // Request only microphone access (no camera needed)
       const res = await daily?.startCamera({
-        startVideoOff: false,
+        startVideoOff: true,
         startAudioOff: false,
         audioSource: "default",
       });
 
-      if (res?.mic && res?.camera) {
+      if (res?.mic) {
         setHasMediaAccess(true);
-        setVideoState('starting-conversation');
         
         // Set default devices
         // @ts-expect-error deviceId exists in the MediaDeviceInfo
@@ -175,30 +184,25 @@ export const Homepage: React.FC = () => {
           setConversation(newConversation);
         }
       } else {
-        throw new Error("Failed to access camera or microphone");
+        throw new Error("Failed to access microphone");
       }
     } catch (error) {
       console.error("Media access error:", error);
-      setMediaError("Please allow camera and microphone access to continue with the video call.");
-      setVideoState('requesting-access');
+      setMediaError("Please allow microphone access to continue with the chat.");
     } finally {
       setIsStarting(false);
     }
   };
 
-  const startVideoConsultation = () => {
-    setVideoState('requesting-access');
-    // Don't close sections - keep dashboard visible
-  };
-
-  const closeVideoConsultation = () => {
+  const stopPersonaChat = () => {
     if (daily) {
       daily.leave();
     }
-    setVideoState('none');
+    setIsPersonaActive(false);
     setConversation(null);
     setHasMediaAccess(false);
     setStart(false);
+    setChatMessages([]);
   };
 
   const openSettings = () => {
@@ -214,7 +218,6 @@ export const Homepage: React.FC = () => {
       try {
         setIsSigningOut(true);
         await signOut();
-        // User will be automatically redirected to auth screen by AuthWrapper
       } catch (error) {
         console.error('Sign out error:', error);
         alert('Failed to sign out. Please try again.');
@@ -224,16 +227,19 @@ export const Homepage: React.FC = () => {
     }
   };
 
-  const toggleVideo = useCallback(() => {
-    daily?.setLocalVideo(!isCameraEnabled);
-  }, [daily, isCameraEnabled]);
-
-  const toggleAudio = useCallback(() => {
-    daily?.setLocalAudio(!isMicEnabled);
-  }, [daily, isMicEnabled]);
-
   const sendTextMessage = useCallback(() => {
     if (chatMessage.trim() && conversation?.conversation_id) {
+      // Add user message to chat
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: chatMessage.trim(),
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setChatMessages(prev => [...prev, userMessage]);
+
+      // Send to persona
       daily?.sendAppMessage({
         message_type: "conversation",
         event_type: "conversation.echo",
@@ -255,19 +261,28 @@ export const Homepage: React.FC = () => {
   }, [sendTextMessage]);
 
   const startVoiceRecording = useCallback(() => {
-    if (hasMediaAccess) {
+    if (hasMediaAccess && !isListening) {
       setIsListening(true);
       daily?.setLocalAudio(true);
-      
-      setTimeout(() => {
-        setIsListening(false);
-      }, 10000);
     }
-  }, [daily, hasMediaAccess]);
+  }, [daily, hasMediaAccess, isListening]);
 
   const stopVoiceRecording = useCallback(() => {
-    setIsListening(false);
-  }, []);
+    if (isListening) {
+      setIsListening(false);
+      daily?.setLocalAudio(false);
+      
+      // Add voice message placeholder
+      const voiceMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: 'Voice message sent',
+        timestamp: new Date(),
+        type: 'voice'
+      };
+      setChatMessages(prev => [...prev, voiceMessage]);
+    }
+  }, [daily, isListening]);
 
   const fileCount = getFileCount();
 
@@ -275,7 +290,7 @@ export const Homepage: React.FC = () => {
     {
       id: 'uploaded-documents' as DashboardSection,
       icon: <Files className="size-4" />,
-      title: 'Uploaded Documents',
+      title: 'Documents',
       count: fileCount
     },
     {
@@ -287,13 +302,13 @@ export const Homepage: React.FC = () => {
     {
       id: 'chat-history' as DashboardSection,
       icon: <History className="size-4" />,
-      title: 'Chat History',
+      title: 'History',
       count: 12
     },
     {
       id: 'knowledge-base' as DashboardSection,
       icon: <Brain className="size-4" />,
-      title: 'Knowledge Base',
+      title: 'Knowledge',
       count: null
     },
     {
@@ -303,201 +318,6 @@ export const Homepage: React.FC = () => {
       count: null
     }
   ];
-
-  const renderVideoOverlay = () => {
-    if (videoState === 'none') return null;
-
-    return (
-      <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-sm z-40 flex items-center justify-center">
-        {videoState === 'requesting-access' && (
-          <div className="text-center max-w-md">
-            {isStarting ? (
-              <>
-                <l-quantum size="45" speed="1.75" color="white"></l-quantum>
-                <p className="text-white text-lg mt-4">Requesting access...</p>
-              </>
-            ) : (
-              <>
-                <div className="mb-8">
-                  <h1 className="text-white text-2xl font-bold mb-4">
-                    Start Your Financial Consultation
-                  </h1>
-                  <p className="text-gray-300 text-base mb-8">
-                    To begin your video call with your AI financial mentor, please grant access to your camera and microphone.
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-4 mb-8">
-                  <div className="flex items-center gap-4 bg-gray-800 border border-gray-700 rounded-lg p-4">
-                    <div className="bg-green-600/20 p-3 rounded-full">
-                      <Camera className="size-6 text-green-400" />
-                    </div>
-                    <div className="text-left">
-                      <h3 className="text-white font-semibold">Camera Access</h3>
-                      <p className="text-gray-400 text-sm">Required for video consultation</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 bg-gray-800 border border-gray-700 rounded-lg p-4">
-                    <div className="bg-green-600/20 p-3 rounded-full">
-                      <Mic className="size-6 text-green-400" />
-                    </div>
-                    <div className="text-left">
-                      <h3 className="text-white font-semibold">Microphone Access</h3>
-                      <p className="text-gray-400 text-sm">Required for voice interaction</p>
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={requestMediaAccess}
-                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold text-lg h-auto mb-4"
-                  disabled={isStarting}
-                >
-                  <Camera className="size-5 mr-2" />
-                  <Mic className="size-5 mr-3" />
-                  Enable Camera & Microphone
-                </Button>
-
-                <Button
-                  onClick={closeVideoConsultation}
-                  variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white px-6 py-2"
-                >
-                  Cancel
-                </Button>
-
-                {mediaError && (
-                  <div className="mt-6 flex items-center gap-2 text-wrap rounded-lg border bg-red-500/20 border-red-500/50 p-4 text-red-200 backdrop-blur-sm">
-                    <AlertTriangle className="size-5 flex-shrink-0" />
-                    <p className="text-sm">{mediaError}</p>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {videoState === 'starting-conversation' && (
-          <div className="text-center">
-            <l-quantum size="45" speed="1.75" color="white"></l-quantum>
-            <p className="text-white text-lg mt-4">Connecting to your financial mentor...</p>
-          </div>
-        )}
-
-        {videoState === 'active-conversation' && (
-          <div className="w-full h-full relative">
-            {remoteParticipantIds?.length > 0 ? (
-              <Video
-                id={remoteParticipantIds[0]}
-                className="size-full"
-                tileClassName="!object-cover"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <l-quantum size="45" speed="1.75" color="white"></l-quantum>
-                  <p className="text-white text-lg mt-4">Your financial mentor is joining...</p>
-                </div>
-              </div>
-            )}
-
-            {/* User video - smaller overlay */}
-            {localSessionId && (
-              <Video
-                id={localSessionId}
-                tileClassName="!object-cover"
-                className={cn(
-                  "absolute bottom-32 right-4 aspect-video h-32 w-20 overflow-hidden rounded-lg border border-white/20 sm:bottom-32 lg:h-auto lg:w-40"
-                )}
-              />
-            )}
-
-            {/* Chat Interface - Bottom */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gray-900/90 backdrop-blur-sm border-t border-gray-700 p-4">
-              <div className="max-w-4xl mx-auto">
-                <div className="flex items-center gap-3">
-                  {/* Text Input */}
-                  <div className="flex-1 relative">
-                    <Input
-                      value={chatMessage}
-                      onChange={(e) => setChatMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Type your financial question or use voice..."
-                      className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 pr-12 h-12 rounded-lg"
-                      style={{ fontFamily: "'Source Code Pro', monospace" }}
-                    />
-                    <Button
-                      onClick={sendTextMessage}
-                      disabled={!chatMessage.trim()}
-                      className="absolute right-1 top-1 h-10 w-10 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                      size="icon"
-                    >
-                      <Send className="size-4" />
-                    </Button>
-                  </div>
-
-                  {/* Voice Button */}
-                  <Button
-                    onMouseDown={startVoiceRecording}
-                    onMouseUp={stopVoiceRecording}
-                    onMouseLeave={stopVoiceRecording}
-                    className={cn(
-                      "h-12 w-12 rounded-lg transition-all duration-200",
-                      isListening 
-                        ? "bg-red-500 hover:bg-red-600 animate-pulse" 
-                        : "bg-green-600 hover:bg-green-700"
-                    )}
-                    size="icon"
-                  >
-                    <Mic className="size-5" />
-                  </Button>
-
-                  {/* Video Controls */}
-                  <div className="flex gap-2">
-                    <Button
-                      size="icon"
-                      className="h-12 w-12 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700"
-                      variant="secondary"
-                      onClick={toggleAudio}
-                    >
-                      {!isMicEnabled ? (
-                        <MicOffIcon className="size-5" />
-                      ) : (
-                        <MicIcon className="size-5" />
-                      )}
-                    </Button>
-                    <Button
-                      size="icon"
-                      className="h-12 w-12 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700"
-                      variant="secondary"
-                      onClick={toggleVideo}
-                    >
-                      {!isCameraEnabled ? (
-                        <VideoOffIcon className="size-5" />
-                      ) : (
-                        <VideoIcon className="size-5" />
-                      )}
-                    </Button>
-                    <Button
-                      size="icon"
-                      className="h-12 w-12 rounded-lg bg-red-600 hover:bg-red-700"
-                      variant="secondary"
-                      onClick={closeVideoConsultation}
-                    >
-                      <PhoneIcon className="size-5 rotate-[135deg]" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <DailyAudio />
-          </div>
-        )}
-      </div>
-    );
-  };
 
   const renderSectionContent = () => {
     switch (activeSection) {
@@ -748,7 +568,7 @@ export const Homepage: React.FC = () => {
 
   return (
     <div className="h-screen bg-gray-900 flex overflow-hidden">
-      {/* Left Sidebar - Financial Overview (Same width as Jargon Guide) */}
+      {/* Left Sidebar - Financial Overview */}
       <div className="w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-hidden">
         <div className="mb-4">
           <h2 className="text-white text-lg font-bold mb-1">Financial Overview</h2>
@@ -877,11 +697,33 @@ export const Homepage: React.FC = () => {
         </div>
       </div>
       
-      {/* Main Content */}
+      {/* Main Content - Persona Chat Interface */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {/* Dashboard Navigation */}
+        {/* Top Header with User Info */}
         <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
+                <TrendingUp className="size-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
+                  FinIQ.ai
+                </h1>
+                {user && (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <User className="size-3" />
+                    <span>Welcome back, {user.user_metadata?.full_name || user.email}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard Navigation - Single Line */}
+        <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
+          <div className="flex gap-2">
             {dashboardOptions.map((option) => (
               <button
                 key={option.id}
@@ -904,30 +746,179 @@ export const Homepage: React.FC = () => {
           </div>
         </div>
 
-        {/* Video Consultation Section */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
-          <div className="flex items-center justify-center">
-            <Button
-              onClick={startVideoConsultation}
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-green-600/25 transition-all duration-200"
-            >
-              <VideoIcon className="size-5 mr-2" />
-              Start Video Consultation
-              <ArrowRight className="size-5 ml-2" />
-            </Button>
+        {/* Persona Chat Interface */}
+        {!activeSection && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {!isPersonaActive ? (
+              /* Start Chat Interface */
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center max-w-md">
+                  <div className="w-24 h-24 bg-gradient-to-br from-green-600 to-green-700 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <User className="size-12 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-4">
+                    Meet Your AI Financial Mentor
+                  </h2>
+                  <p className="text-gray-300 text-base mb-8">
+                    Start a conversation with your personalized AI financial advisor. Ask questions, get insights, and upload documents for analysis.
+                  </p>
+                  
+                  {mediaError && (
+                    <div className="mb-6 flex items-center gap-2 text-wrap rounded-lg border bg-red-500/20 border-red-500/50 p-4 text-red-200 backdrop-blur-sm">
+                      <AlertTriangle className="size-5 flex-shrink-0" />
+                      <p className="text-sm">{mediaError}</p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={startPersonaChat}
+                    disabled={isStarting}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-green-600/25 transition-all duration-200"
+                  >
+                    {isStarting ? (
+                      <>
+                        <l-quantum size="20" speed="1.75" color="white"></l-quantum>
+                        <span className="ml-2">Starting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="size-5 mr-2" />
+                        Start Conversation
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* Active Chat Interface */
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Persona Video */}
+                <div className="flex-1 relative bg-black">
+                  {remoteParticipantIds?.length > 0 ? (
+                    <Video
+                      id={remoteParticipantIds[0]}
+                      className="size-full"
+                      tileClassName="!object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="text-center">
+                        <l-quantum size="45" speed="1.75" color="white"></l-quantum>
+                        <p className="text-white text-lg mt-4">Your financial mentor is joining...</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chat Messages Overlay */}
+                  <div className="absolute top-4 left-4 right-4 max-h-60 overflow-y-auto bg-black/60 backdrop-blur-sm rounded-lg p-4">
+                    <div className="space-y-3">
+                      {chatMessages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+                              message.role === 'user'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-700 text-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {message.type === 'voice' && <Mic className="size-3" />}
+                              <span>{message.content}</span>
+                            </div>
+                            <div className="text-xs opacity-70 mt-1">
+                              {message.timestamp.toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* End Chat Button */}
+                  <div className="absolute top-4 right-4">
+                    <Button
+                      onClick={stopPersonaChat}
+                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                    >
+                      <PhoneIcon className="size-4 rotate-[135deg] mr-2" />
+                      End Chat
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Chat Input */}
+                <div className="bg-gray-800 border-t border-gray-700 p-4 flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    {/* File Upload Button */}
+                    <FileUpload 
+                      onUploadComplete={handleFileUploadComplete}
+                      maxFiles={5}
+                      maxSize={25 * 1024 * 1024}
+                    />
+
+                    {/* Text Input */}
+                    <div className="flex-1 relative">
+                      <Input
+                        value={chatMessage}
+                        onChange={(e) => setChatMessage(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Ask your financial mentor anything..."
+                        className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 h-12 rounded-lg"
+                        style={{ fontFamily: "'Source Code Pro', monospace" }}
+                      />
+                      <Button
+                        onClick={sendTextMessage}
+                        disabled={!chatMessage.trim()}
+                        className="absolute right-1 top-1 h-10 w-10 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        size="icon"
+                      >
+                        <Send className="size-4" />
+                      </Button>
+                    </div>
+
+                    {/* Voice Button */}
+                    <Button
+                      onMouseDown={startVoiceRecording}
+                      onMouseUp={stopVoiceRecording}
+                      onMouseLeave={stopVoiceRecording}
+                      className={cn(
+                        "h-12 w-12 rounded-lg transition-all duration-200",
+                        isListening 
+                          ? "bg-red-500 hover:bg-red-600 animate-pulse" 
+                          : "bg-green-600 hover:bg-green-700"
+                      )}
+                      size="icon"
+                    >
+                      <Mic className="size-5" />
+                    </Button>
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-400 justify-center">
+                    <span>💬 Type your question and press Enter</span>
+                    <span>🎤 Hold voice button to speak</span>
+                    <span>📎 Click + to upload documents</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* Main Content Area */}
-        <div className="flex-1 p-4 overflow-y-auto">
-          {renderSectionContent()}
-        </div>
+        {/* Section Content */}
+        {activeSection && (
+          <div className="flex-1 p-4 overflow-y-auto">
+            {renderSectionContent()}
+          </div>
+        )}
 
-        {/* Video Consultation Overlay */}
-        {renderVideoOverlay()}
+        <DailyAudio />
       </div>
 
-      {/* Right Sidebar - Jargon Guide (Same width as Financial Overview) */}
+      {/* Right Sidebar - Jargon Guide */}
       <JargonGuide />
     </div>
   );
