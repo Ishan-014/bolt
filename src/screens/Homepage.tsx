@@ -29,14 +29,15 @@ import {
   FileText,
   History,
   Brain,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 
-type DashboardSection = 'uploaded-documents' | 'reports' | 'chat-history' | 'knowledge-base' | 'settings';
+type DashboardSection = 'uploaded-documents' | 'reports' | 'chat-history' | 'knowledge-base' | 'settings' | null;
 
 export const Homepage: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
-  const [activeSection, setActiveSection] = useState<DashboardSection>('uploaded-documents');
+  const [activeSection, setActiveSection] = useState<DashboardSection>(null);
   const { user } = useAuth();
   const { files, getFileCount } = useUserFiles();
 
@@ -51,6 +52,10 @@ export const Homepage: React.FC = () => {
 
   const openSettings = () => {
     setScreenState({ currentScreen: "settings" });
+  };
+
+  const closeSection = () => {
+    setActiveSection(null);
   };
 
   const fileCount = getFileCount();
@@ -101,6 +106,14 @@ export const Homepage: React.FC = () => {
                   maxFiles={10}
                   maxSize={25 * 1024 * 1024}
                 />
+                <Button
+                  onClick={closeSection}
+                  variant="outline"
+                  size="icon"
+                  className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+                >
+                  <X className="size-4" />
+                </Button>
               </div>
             </div>
             <FileManager />
@@ -110,7 +123,17 @@ export const Homepage: React.FC = () => {
       case 'reports':
         return (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Financial Reports</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">Financial Reports</h2>
+              <Button
+                onClick={closeSection}
+                variant="outline"
+                size="icon"
+                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:bg-gray-700 transition-all duration-200">
                 <div className="flex items-center gap-3 mb-3">
@@ -160,7 +183,17 @@ export const Homepage: React.FC = () => {
       case 'chat-history':
         return (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Chat History</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">Chat History</h2>
+              <Button
+                onClick={closeSection}
+                variant="outline"
+                size="icon"
+                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
             <div className="space-y-3">
               {[
                 { date: 'Today, 2:30 PM', topic: 'Investment Portfolio Review', duration: '15 min' },
@@ -191,7 +224,17 @@ export const Homepage: React.FC = () => {
       case 'knowledge-base':
         return (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Knowledge Base</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">Knowledge Base</h2>
+              <Button
+                onClick={closeSection}
+                variant="outline"
+                size="icon"
+                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-base font-semibold text-white mb-3">Financial Jargon Guide</h3>
@@ -230,7 +273,17 @@ export const Homepage: React.FC = () => {
       case 'settings':
         return (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Settings</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">Settings</h2>
+              <Button
+                onClick={closeSection}
+                variant="outline"
+                size="icon"
+                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-base font-semibold text-white mb-3">Account Settings</h3>
@@ -272,7 +325,24 @@ export const Homepage: React.FC = () => {
         );
 
       default:
-        return null;
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="size-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Welcome to FinIQ.ai</h2>
+              <p className="text-gray-400 mb-6">Select an option from the dashboard to get started</p>
+              <Button
+                onClick={startVideoConsultation}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold"
+              >
+                <Video className="size-5 mr-2" />
+                Start Video Consultation
+              </Button>
+            </div>
+          </div>
+        );
     }
   };
 
@@ -356,23 +426,6 @@ export const Homepage: React.FC = () => {
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Compact Header */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-700 rounded-lg flex items-center justify-center">
-                <TrendingUp className="size-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">FinIQ.ai Dashboard</h1>
-                {user && (
-                  <p className="text-gray-400 text-xs">Welcome back, {user.user_metadata?.full_name || user.email}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Compact Dashboard Navigation */}
         <div className="bg-gray-800 border-b border-gray-700 p-4">
           <div className="flex gap-2 overflow-x-auto">

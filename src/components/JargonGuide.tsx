@@ -120,24 +120,24 @@ export const JargonGuide: React.FC = () => {
   });
 
   return (
-    <div className="w-80 bg-black/40 backdrop-blur-sm border-l border-white/10 p-6 overflow-y-auto">
+    <div className="w-80 bg-gray-800 border-l border-gray-700 p-6 overflow-y-auto">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
-          <BookOpen className="size-5 text-primary" />
+          <BookOpen className="size-5 text-green-400" />
           <h2 className="text-white text-xl font-bold">Financial Jargon Guide</h2>
         </div>
-        <p className="text-white/60 text-sm">Understand financial terms used by your mentor</p>
+        <p className="text-gray-400 text-sm">Understand financial terms used by your mentor</p>
       </div>
 
       {/* Search */}
       <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 size-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 size-4" />
         <input
           type="text"
           placeholder="Search terms..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-black/20 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white placeholder-white/40 focus:outline-none focus:border-primary/50 transition-colors"
+          className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-green-500 transition-colors"
         />
       </div>
 
@@ -148,8 +148,8 @@ export const JargonGuide: React.FC = () => {
             onClick={() => setSelectedCategory('all')}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               selectedCategory === 'all' 
-                ? 'bg-primary/20 text-primary border border-primary/30' 
-                : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20'
+                ? 'bg-green-600/20 text-green-400 border border-green-600/30' 
+                : 'bg-gray-700 text-gray-400 border border-gray-600 hover:bg-gray-600'
             }`}
           >
             All
@@ -159,7 +159,7 @@ export const JargonGuide: React.FC = () => {
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               selectedCategory === 'investment' 
                 ? 'bg-blue-400/20 text-blue-400 border border-blue-400/30' 
-                : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20'
+                : 'bg-gray-700 text-gray-400 border border-gray-600 hover:bg-gray-600'
             }`}
           >
             Investment
@@ -169,7 +169,7 @@ export const JargonGuide: React.FC = () => {
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               selectedCategory === 'banking' 
                 ? 'bg-green-400/20 text-green-400 border border-green-400/30' 
-                : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20'
+                : 'bg-gray-700 text-gray-400 border border-gray-600 hover:bg-gray-600'
             }`}
           >
             Banking
@@ -179,7 +179,7 @@ export const JargonGuide: React.FC = () => {
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               selectedCategory === 'insurance' 
                 ? 'bg-purple-400/20 text-purple-400 border border-purple-400/30' 
-                : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20'
+                : 'bg-gray-700 text-gray-400 border border-gray-600 hover:bg-gray-600'
             }`}
           >
             Insurance
@@ -190,7 +190,7 @@ export const JargonGuide: React.FC = () => {
       {/* Terms List */}
       <div className="space-y-3">
         {filteredTerms.map((term, index) => (
-          <div key={index} className="bg-black/20 border border-white/10 rounded-lg p-4 hover:bg-black/30 transition-all duration-200">
+          <div key={index} className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
             <div className="flex items-start gap-3 mb-2">
               <div className={`p-1 rounded border ${categoryColors[term.category]}`}>
                 {term.icon}
@@ -202,21 +202,21 @@ export const JargonGuide: React.FC = () => {
                 </span>
               </div>
             </div>
-            <p className="text-white/70 text-sm leading-relaxed">{term.definition}</p>
+            <p className="text-gray-300 text-sm leading-relaxed">{term.definition}</p>
           </div>
         ))}
       </div>
 
       {filteredTerms.length === 0 && (
         <div className="text-center py-8">
-          <BookOpen className="size-12 text-white/20 mx-auto mb-3" />
-          <p className="text-white/40 text-sm">No terms found matching your search.</p>
+          <BookOpen className="size-12 text-gray-500 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm">No terms found matching your search.</p>
         </div>
       )}
 
-      <div className="mt-8 p-4 bg-primary/10 border border-primary/20 rounded-lg">
-        <h3 className="text-primary font-semibold text-sm mb-2">💡 Pro Tip</h3>
-        <p className="text-white/70 text-xs">
+      <div className="mt-8 p-4 bg-green-600/10 border border-green-600/20 rounded-lg">
+        <h3 className="text-green-400 font-semibold text-sm mb-2">💡 Pro Tip</h3>
+        <p className="text-gray-300 text-xs">
           Ask your AI mentor to explain any financial term you don't understand. They can provide personalized examples based on your situation!
         </p>
       </div>
