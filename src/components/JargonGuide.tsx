@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, BookOpen, TrendingUp, TrendingDown, DollarSign, Shield, Building, PieChart } from 'lucide-react';
-import { motion, useScroll, useTransform, useMotionValue } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 
 interface JargonTerm {
   term: string;
@@ -112,70 +112,33 @@ const categoryColors = {
 interface CardProps {
   term: JargonTerm;
   index: number;
-  scrollY: any;
-  containerHeight: number;
-  cardHeight: number;
+  scrollProgress: number;
+  totalCards: number;
 }
 
-const JargonCard: React.FC<CardProps> = ({ term, index, scrollY, containerHeight, cardHeight }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [cardTop, setCardTop] = useState(0);
-
-  useEffect(() => {
-    if (cardRef.current) {
-      setCardTop(index * (cardHeight + 12)); // 12px gap between cards
-    }
-  }, [index, cardHeight]);
-
-  // Calculate the center of the viewport
-  const viewportCenter = containerHeight / 2;
+const JargonCard: React.FC<CardProps> = ({ term, index, scrollProgress, totalCards }) => {
+  // Calculate the position of this card in the scroll
+  const cardPosition = index / (totalCards - 1);
   
-  // Calculate card center position relative to viewport
-  const cardCenter = cardTop + cardHeight / 2;
+  // Calculate how far this card is from the center (0.5)
+  const distanceFromCenter = Math.abs(cardPosition - scrollProgress);
   
-  // Transform based on distance from viewport center
-  const translateZ = useTransform(
-    scrollY,
-    [
-      cardCenter - viewportCenter - cardHeight,
-      cardCenter - viewportCenter,
-      cardCenter - viewportCenter + cardHeight
-    ],
-    [-100, 100, -100]
-  );
-
-  const scale = useTransform(
-    scrollY,
-    [
-      cardCenter - viewportCenter - cardHeight,
-      cardCenter - viewportCenter,
-      cardCenter - viewportCenter + cardHeight
-    ],
-    [0.7, 1, 0.7]
-  );
-
-  const opacity = useTransform(
-    scrollY,
-    [
-      cardCenter - viewportCenter - cardHeight * 1.5,
-      cardCenter - viewportCenter - cardHeight * 0.5,
-      cardCenter - viewportCenter + cardHeight * 0.5,
-      cardCenter - viewportCenter + cardHeight * 1.5
-    ],
-    [0, 1, 1, 0]
-  );
-
+  // Create the 3D effect
+  const translateZ = Math.max(-200, Math.min(200, (0.5 - distanceFromCenter) * 400 - 100));
+  const scale = Math.max(0.6, Math.min(1.2, 1 - distanceFromCenter * 2));
+  const opacity = Math.max(0, Math.min(1, 1 - distanceFromCenter * 3));
+  
+  // Calculate rotation for wheel effect
+  const rotateX = (distanceFromCenter - 0.5) * 30;
+  
   return (
     <motion.div
-      ref={cardRef}
       style={{
-        translateZ,
-        scale,
+        transform: `translateZ(${translateZ}px) scale(${scale}) rotateX(${rotateX}deg)`,
         opacity,
-        position: 'relative',
-        zIndex: useTransform(translateZ, (z) => Math.round(z + 100))
+        zIndex: Math.round(translateZ + 200),
       }}
-      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200 mb-3"
+      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200 mb-3 will-change-transform"
     >
       <div className="flex items-start gap-3 mb-2">
         <div className={`p-1 rounded border ${categoryColors[term.category]}`}>
@@ -196,9 +159,8 @@ const JargonCard: React.FC<CardProps> = ({ term, index, scrollY, containerHeight
 export const JargonGuide: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [scrollProgress, setScrollProgress] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  
-  const { scrollY } = useScroll({ container: scrollRef });
 
   const filteredTerms = jargonTerms.filter(term => {
     const matchesSearch = term.term.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -207,8 +169,14 @@ export const JargonGuide: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const containerHeight = 400; // Fixed height for the scrollable container
-  const cardHeight = 120; // Approximate height of each card
+  // Handle scroll to update progress
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight - container.clientHeight;
+    const progress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+    setScrollProgress(progress);
+  };
 
   return (
     <div className="w-80 bg-gray-800 border-l border-gray-700 p-6 overflow-hidden">
@@ -279,38 +247,33 @@ export const JargonGuide: React.FC = () => {
       </div>
 
       {/* 3D Scrollable Terms List */}
-      <motion.div
+      <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className="overflow-y-auto"
         style={{
-          height: `${containerHeight}px`,
+          height: '400px',
           perspective: '1000px',
-          transformStyle: 'preserve-3d'
+          perspectiveOrigin: 'center center',
         }}
       >
-        <div style={{ height: `${filteredTerms.length * (cardHeight + 12)}px`, position: 'relative' }}>
+        <div 
+          style={{ 
+            transformStyle: 'preserve-3d',
+            padding: '100px 0', // Add padding to center the first and last cards
+          }}
+        >
           {filteredTerms.map((term, index) => (
-            <div
+            <JargonCard
               key={`${term.term}-${selectedCategory}`}
-              style={{
-                position: 'absolute',
-                top: `${index * (cardHeight + 12)}px`,
-                left: 0,
-                right: 0,
-                height: `${cardHeight}px`
-              }}
-            >
-              <JargonCard
-                term={term}
-                index={index}
-                scrollY={scrollY}
-                containerHeight={containerHeight}
-                cardHeight={cardHeight}
-              />
-            </div>
+              term={term}
+              index={index}
+              scrollProgress={scrollProgress}
+              totalCards={filteredTerms.length}
+            />
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {filteredTerms.length === 0 && (
         <div className="text-center py-8">
