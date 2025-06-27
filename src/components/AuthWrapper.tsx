@@ -120,16 +120,16 @@ const AuthForm: React.FC = () => {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 relative overflow-hidden">
         {/* Subtle background pattern */}
         <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-20 left-20 w-32 h-32 bg-green-700 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-40 right-20 w-40 h-40 bg-green-800 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-green-600 rounded-full blur-2xl"></div>
+          <div className="absolute top-20 left-20 w-32 h-32 bg-green-600 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-40 right-20 w-40 h-40 bg-green-700 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-green-500 rounded-full blur-2xl"></div>
         </div>
         
         <div className="flex flex-col justify-center px-16 py-20 w-full relative z-10">
           {/* Logo Section */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-700 to-green-800 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
                 <TrendingUp className="size-7 text-white" />
               </div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
@@ -144,8 +144,8 @@ const AuthForm: React.FC = () => {
           {/* Enhanced Feature List */}
           <div className="space-y-6 mb-12">
             <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-green-800/30 rounded-lg flex items-center justify-center group-hover:bg-green-700/40 transition-colors">
-                <Zap className="size-5 text-green-300" />
+              <div className="w-10 h-10 bg-green-600/25 rounded-lg flex items-center justify-center group-hover:bg-green-600/35 transition-colors">
+                <Zap className="size-5 text-green-400" />
               </div>
               <div>
                 <span className="text-white font-medium">AI-powered financial analysis</span>
@@ -153,8 +153,8 @@ const AuthForm: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-green-800/30 rounded-lg flex items-center justify-center group-hover:bg-green-700/40 transition-colors">
-                <TrendingUp className="size-5 text-green-300" />
+              <div className="w-10 h-10 bg-green-600/25 rounded-lg flex items-center justify-center group-hover:bg-green-600/35 transition-colors">
+                <TrendingUp className="size-5 text-green-400" />
               </div>
               <div>
                 <span className="text-white font-medium">Personalized investment advice</span>
@@ -162,8 +162,8 @@ const AuthForm: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-green-800/30 rounded-lg flex items-center justify-center group-hover:bg-green-700/40 transition-colors">
-                <Shield className="size-5 text-green-300" />
+              <div className="w-10 h-10 bg-green-600/25 rounded-lg flex items-center justify-center group-hover:bg-green-600/35 transition-colors">
+                <Shield className="size-5 text-green-400" />
               </div>
               <div>
                 <span className="text-white font-medium">Secure document analysis</span>
@@ -171,8 +171,8 @@ const AuthForm: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-green-800/30 rounded-lg flex items-center justify-center group-hover:bg-green-700/40 transition-colors">
-                <Users className="size-5 text-green-300" />
+              <div className="w-10 h-10 bg-green-600/25 rounded-lg flex items-center justify-center group-hover:bg-green-600/35 transition-colors">
+                <Users className="size-5 text-green-400" />
               </div>
               <div>
                 <span className="text-white font-medium">24/7 financial guidance</span>
@@ -184,15 +184,15 @@ const AuthForm: React.FC = () => {
           {/* Enhanced Stats */}
           <div className="grid grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-300 mb-1">10K+</div>
+              <div className="text-3xl font-bold text-green-400 mb-1">10K+</div>
               <div className="text-gray-400 text-sm">Active Users</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-300 mb-1">95%</div>
+              <div className="text-3xl font-bold text-green-400 mb-1">95%</div>
               <div className="text-gray-400 text-sm">Satisfaction</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-300 mb-1">$2M+</div>
+              <div className="text-3xl font-bold text-green-400 mb-1">$2M+</div>
               <div className="text-gray-400 text-sm">Managed</div>
             </div>
           </div>
@@ -205,7 +205,7 @@ const AuthForm: React.FC = () => {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-700 to-green-800 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
                 <TrendingUp className="size-6 text-white" />
               </div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
@@ -242,7 +242,7 @@ const AuthForm: React.FC = () => {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'fullName')}
-                    className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-green-600 focus:ring-green-600/20 transition-all duration-200"
+                    className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-green-500 focus:ring-green-500/20 transition-all duration-200"
                     required
                   />
                 </div>
@@ -260,7 +260,7 @@ const AuthForm: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, 'email')}
-                  className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-green-600 focus:ring-green-600/20 transition-all duration-200"
+                  className="h-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-green-500 focus:ring-green-500/20 transition-all duration-200"
                   required
                 />
               </div>
@@ -278,7 +278,7 @@ const AuthForm: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'password')}
-                    className="h-12 pr-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-green-600 focus:ring-green-600/20 transition-all duration-200"
+                    className="h-12 pr-12 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-green-500 focus:ring-green-500/20 transition-all duration-200"
                     required
                     minLength={6}
                   />
@@ -305,8 +305,8 @@ const AuthForm: React.FC = () => {
               )}
 
               {success && (
-                <div className="flex items-start gap-3 p-4 bg-green-900/50 border border-green-700/50 rounded-lg">
-                  <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-green-300" />
+                <div className="flex items-start gap-3 p-4 bg-green-800/40 border border-green-600/50 rounded-lg">
+                  <AlertCircle className="size-5 flex-shrink-0 mt-0.5 text-green-400" />
                   <span className="text-green-200 text-sm">{success}</span>
                 </div>
               )}
@@ -314,7 +314,7 @@ const AuthForm: React.FC = () => {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-green-700/25"
+                className="w-full h-12 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-green-600/25"
               >
                 {isLoading ? (
                   <Loader2 className="size-5 animate-spin mr-2" />
@@ -332,7 +332,7 @@ const AuthForm: React.FC = () => {
                   setSuccess(null)
                   setPassword('')
                 }}
-                className="text-green-300 hover:text-green-200 text-sm font-medium transition-colors"
+                className="text-green-400 hover:text-green-300 text-sm font-medium transition-colors"
               >
                 {isSignUp 
                   ? 'Already have an account? Sign in' 
@@ -407,7 +407,7 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 bg-gradient-to-br from-green-700 to-green-800 rounded-xl flex items-center justify-center mb-4 mx-auto shadow-lg">
+          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center mb-4 mx-auto shadow-lg">
             <Loader2 className="size-6 animate-spin text-white" />
           </div>
           <h3 className="text-white text-lg font-medium mb-2">Loading FinIQ.ai</h3>
