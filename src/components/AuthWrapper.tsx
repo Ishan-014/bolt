@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,30 @@ const AuthForm: React.FC = () => {
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [success, setSuccess] = React.useState<string | null>(null)
+
+  // Refs for form inputs
+  const fullNameRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent, currentField: 'fullName' | 'email' | 'password') => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (currentField === 'fullName' && emailRef.current) {
+        emailRef.current.focus()
+      } else if (currentField === 'email' && passwordRef.current) {
+        passwordRef.current.focus()
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (currentField === 'password' && emailRef.current) {
+        emailRef.current.focus()
+      } else if (currentField === 'email' && isSignUp && fullNameRef.current) {
+        fullNameRef.current.focus()
+      }
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,10 +217,12 @@ const AuthForm: React.FC = () => {
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40 size-5" />
                     <Input
+                      ref={fullNameRef}
                       type="text"
                       placeholder="Enter your full name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, 'fullName')}
                       className="pl-12 h-12 bg-white/5 border-white/20 text-white placeholder-white/40 rounded-xl focus:border-primary/50 focus:ring-primary/20"
                       required
                     />
@@ -209,10 +235,12 @@ const AuthForm: React.FC = () => {
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40 size-5" />
                   <Input
+                    ref={emailRef}
                     type="email"
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'email')}
                     className="pl-12 h-12 bg-white/5 border-white/20 text-white placeholder-white/40 rounded-xl focus:border-primary/50 focus:ring-primary/20"
                     required
                   />
@@ -224,10 +252,12 @@ const AuthForm: React.FC = () => {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40 size-5" />
                   <Input
+                    ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'password')}
                     className="pl-12 pr-12 h-12 bg-white/5 border-white/20 text-white placeholder-white/40 rounded-xl focus:border-primary/50 focus:ring-primary/20"
                     required
                     minLength={6}
@@ -287,6 +317,13 @@ const AuthForm: React.FC = () => {
                   : "Don't have an account? Sign up"
                 }
               </button>
+            </div>
+
+            {/* Keyboard Navigation Hint */}
+            <div className="mt-6 text-center">
+              <p className="text-white/30 text-xs">
+                💡 Use ↑↓ arrow keys to navigate between fields
+              </p>
             </div>
           </div>
 
