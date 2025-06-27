@@ -706,6 +706,17 @@ export const Homepage: React.FC = () => {
                     <span className="text-gray-300 text-sm">Notification Preferences</span>
                     <ChevronRight className="size-3 text-gray-400" />
                   </div>
+                  <div className="flex items-center justify-between py-2 border-t border-gray-600 pt-2 mt-3">
+                    <Button
+                      onClick={handleSignOut}
+                      variant="destructive"
+                      disabled={isSigningOut}
+                      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+                    >
+                      <LogOut className="size-4" />
+                      {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -866,36 +877,23 @@ export const Homepage: React.FC = () => {
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative">
-        {/* Top Header with User Info and Sign Out */}
+        {/* Top Header with User Info */}
         <div className="bg-gray-800 border-b border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-                <TrendingUp className="size-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
-                  FinIQ.ai
-                </h1>
-                {user && (
-                  <div className="flex items-center gap-2 text-gray-400 text-sm">
-                    <User className="size-3" />
-                    <span>Welcome back, {user.user_metadata?.full_name || user.email}</span>
-                  </div>
-                )}
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
+              <TrendingUp className="size-6 text-white" />
             </div>
-
-            {/* Sign Out Button */}
-            <Button
-              onClick={handleSignOut}
-              variant="outline"
-              disabled={isSigningOut}
-              className="flex items-center gap-2 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white px-4 py-2"
-            >
-              <LogOut className="size-4" />
-              {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-            </Button>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
+                FinIQ.ai
+              </h1>
+              {user && (
+                <div className="flex items-center gap-2 text-gray-400 text-sm">
+                  <User className="size-3" />
+                  <span>Welcome back, {user.user_metadata?.full_name || user.email}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
