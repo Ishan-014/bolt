@@ -325,17 +325,7 @@ export const Homepage: React.FC = () => {
         );
 
       default:
-        return (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="size-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Welcome to FinIQ.ai</h2>
-              <p className="text-gray-400 mb-6">Select an option from the dashboard to get started</p>
-            </div>
-          </div>
-        );
+        return null; // Return nothing when no section is selected
     }
   };
 
