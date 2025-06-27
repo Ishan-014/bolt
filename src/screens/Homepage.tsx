@@ -748,8 +748,8 @@ export const Homepage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex">
-      {/* Left Sidebar - Financial Overview (Slimmer) with Custom Scrollbar */}
-      <div className="w-64 bg-gray-800 border-r border-gray-700 p-4 overflow-hidden">
+      {/* Left Sidebar - Financial Overview (Same width as Jargon Guide) */}
+      <div className="w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-hidden">
         <div className="mb-4">
           <h2 className="text-white text-lg font-bold mb-1">Financial Overview</h2>
           <p className="text-gray-400 text-xs">Your financial health at a glance</p>
@@ -927,7 +927,7 @@ export const Homepage: React.FC = () => {
         {renderVideoOverlay()}
       </div>
 
-      {/* Right Sidebar - Jargon Guide (Slimmer) */}
+      {/* Right Sidebar - Jargon Guide (Same width as Financial Overview) */}
       <JargonGuide />
     </div>
   );

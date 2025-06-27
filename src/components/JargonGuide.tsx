@@ -187,7 +187,7 @@ export const JargonGuide: React.FC = () => {
         </div>
       </div>
 
-      {/* Terms List with Custom Scrollbar */}
+      {/* Terms List with Hidden Scrollbar */}
       <div className="jargon-scroll-container overflow-y-auto" style={{ height: 'calc(100vh - 400px)' }}>
         <div className="space-y-3">
           {filteredTerms.map((term, index) => (
