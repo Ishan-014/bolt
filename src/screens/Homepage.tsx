@@ -216,7 +216,7 @@ export const Homepage: React.FC = () => {
           <div className="relative z-10 max-w-4xl mx-auto text-center">
             {/* Header */}
             <div className="mb-12">
-              <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="flex items-center justify-center gap-3 mb-8">
                 <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
                   <TrendingUp className="size-9 text-white" />
                 </div>
@@ -224,10 +224,6 @@ export const Homepage: React.FC = () => {
                   FinIQ.ai
                 </h1>
               </div>
-              <p className="text-xl md:text-2xl text-gray-300 mb-4 max-w-3xl mx-auto leading-relaxed">
-                Your AI-powered financial mentor. Upload documents, get personalized advice, 
-                and take control of your financial future.
-              </p>
               
               {/* User Welcome */}
               {user && (
