@@ -231,6 +231,19 @@ export const Settings: React.FC = () => {
                 </div>
               </div>
 
+              {/* Sign Out Section - Right below Account Information */}
+              <div className="flex justify-start">
+                <Button
+                  onClick={handleSignOut}
+                  variant="destructive"
+                  disabled={isSigningOut}
+                  className="flex items-center gap-2 px-6 py-3 text-sm font-bold"
+                >
+                  <LogOut className="size-4" />
+                  {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+                </Button>
+              </div>
+
               {/* AI Mentor Settings Section */}
               <div className="space-y-4 p-4 bg-black/20 rounded-lg border border-gray-700">
                 <h3 className="text-lg font-semibold text-white">AI Mentor Settings</h3>
@@ -365,19 +378,8 @@ export const Settings: React.FC = () => {
           </div>
 
           <div className="sticky bottom-0 mt-6 border-t border-gray-700 pt-6 pb-8">
-            <div className="flex items-center justify-between gap-4">
-              {/* Sign Out Button */}
-              <Button
-                onClick={handleSignOut}
-                variant="destructive"
-                disabled={isSigningOut}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-bold"
-              >
-                <LogOut className="size-4" />
-                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-              </Button>
-
-              {/* Save Changes Button */}
+            <div className="flex justify-end">
+              {/* Save Changes Button - Now only button in footer */}
               <button
                 onClick={handleSave}
                 className="hover:shadow-footer-btn relative flex items-center justify-center gap-2 rounded-3xl border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.1)] px-4 py-3 text-sm font-bold text-white transition-all duration-200 hover:text-primary"
