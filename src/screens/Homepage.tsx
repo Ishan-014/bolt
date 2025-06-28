@@ -83,7 +83,7 @@ export const Homepage: React.FC = () => {
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
-  const [isListening, setIsListening] = useState(false);
+  const [isMicEnabled, setIsMicEnabled] = useState(false);
   const [start, setStart] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -99,7 +99,6 @@ export const Homepage: React.FC = () => {
   const localVideo = useVideoTrack(localSessionId);
   const localAudio = useAudioTrack(localSessionId);
   const isCameraEnabled = !localVideo.isOff;
-  const isMicEnabled = !localAudio.isOff;
   const remoteParticipantIds = useParticipantIds({ filter: "remote" });
 
   const audio = useMemo(() => {
@@ -120,7 +119,7 @@ export const Homepage: React.FC = () => {
   useEffect(() => {
     if (remoteParticipantIds.length && !start) {
       setStart(true);
-      setTimeout(() => daily?.setLocalAudio(true), 4000);
+      setTimeout(() => daily?.setLocalAudio(false), 4000); // Keep mic off by default
     }
   }, [remoteParticipantIds, start]);
 
@@ -134,7 +133,7 @@ export const Homepage: React.FC = () => {
         })
         .then(() => {
           daily?.setLocalVideo(false); // Disable user camera
-          daily?.setLocalAudio(false);
+          daily?.setLocalAudio(false); // Keep mic off initially
           setIsPersonaActive(true);
         });
     }
@@ -184,7 +183,7 @@ export const Homepage: React.FC = () => {
       // Request only microphone access (no camera needed)
       const res = await daily?.startCamera({
         startVideoOff: true,
-        startAudioOff: false,
+        startAudioOff: true, // Start with mic off
         audioSource: "default",
       });
 
@@ -229,6 +228,7 @@ export const Homepage: React.FC = () => {
     setHasMediaAccess(false);
     setStart(false);
     setChatMessages([]);
+    setIsMicEnabled(false);
   };
 
   const openSettings = () => {
@@ -286,30 +286,14 @@ export const Homepage: React.FC = () => {
     }
   }, [sendTextMessage]);
 
-  const startVoiceRecording = useCallback(() => {
-    if (hasMediaAccess && !isListening) {
-      setIsListening(true);
-      daily?.setLocalAudio(true);
-    }
-  }, [daily, hasMediaAccess, isListening]);
-
-  const stopVoiceRecording = useCallback(() => {
-    if (isListening) {
-      setIsListening(false);
-      daily?.setLocalAudio(false);
+  const toggleMicrophone = useCallback(() => {
+    if (hasMediaAccess && conversation?.conversation_id) {
+      const newMicState = !isMicEnabled;
+      setIsMicEnabled(newMicState);
+      daily?.setLocalAudio(newMicState);
       
-      // Add voice message placeholder
-      const voiceMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'user',
-        content: 'Voice message sent',
-        timestamp: new Date(),
-        type: 'voice'
-      };
-      setChatMessages(prev => [...prev, voiceMessage]);
-
-      // Send voice input to persona
-      if (conversation?.conversation_id) {
+      if (newMicState) {
+        // Mic turned on - send voice input signal
         daily?.sendAppMessage({
           message_type: "conversation",
           event_type: "conversation.input",
@@ -318,9 +302,19 @@ export const Homepage: React.FC = () => {
             modality: "audio",
           },
         });
+        
+        // Add voice message indicator
+        const voiceMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'user',
+          content: 'Speaking...',
+          timestamp: new Date(),
+          type: 'voice'
+        };
+        setChatMessages(prev => [...prev, voiceMessage]);
       }
     }
-  }, [daily, isListening, conversation]);
+  }, [daily, hasMediaAccess, isMicEnabled, conversation]);
 
   const fileCount = getFileCount();
 
@@ -569,7 +563,7 @@ export const Homepage: React.FC = () => {
                       onClick={handleSignOut}
                       variant="destructive"
                       disabled={isSigningOut}
-                      className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-md text-xs h-7"
+                      className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-md text-xs h-6"
                     >
                       <LogOut className="size-3" />
                       {isSigningOut ? 'Signing Out...' : 'Sign Out'}
@@ -854,19 +848,28 @@ export const Homepage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Chat Messages Overlay */}
-                  <div className="absolute top-4 left-4 right-4 max-h-60 overflow-y-auto bg-black/60 backdrop-blur-sm rounded-lg p-4">
-                    <div className="space-y-3">
-                      {chatMessages.map((message) => (
+                  {/* Chat Messages Overlay - Positioned at bottom with gradient fade */}
+                  <div className="absolute bottom-20 left-4 right-4 max-h-48 overflow-hidden">
+                    <div 
+                      className="space-y-3 overflow-y-auto scrollbar-hide pb-4"
+                      style={{
+                        maskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)'
+                      }}
+                    >
+                      {chatMessages.slice(-3).map((message, index) => (
                         <div
                           key={message.id}
-                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
+                          style={{
+                            opacity: 1 - (index * 0.3), // Fade effect for older messages
+                          }}
                         >
                           <div
-                            className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+                            className={`max-w-xs px-4 py-2 rounded-lg text-sm backdrop-blur-sm ${
                               message.role === 'user'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-700 text-gray-200'
+                                ? 'bg-green-600/80 text-white'
+                                : 'bg-gray-800/80 text-gray-200 border border-gray-600/50'
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -924,27 +927,25 @@ export const Homepage: React.FC = () => {
                       </Button>
                     </div>
 
-                    {/* Voice Button */}
+                    {/* Microphone Toggle Button */}
                     <Button
-                      onMouseDown={startVoiceRecording}
-                      onMouseUp={stopVoiceRecording}
-                      onMouseLeave={stopVoiceRecording}
+                      onClick={toggleMicrophone}
                       className={cn(
                         "h-12 w-12 rounded-lg transition-all duration-200",
-                        isListening 
+                        isMicEnabled 
                           ? "bg-red-500 hover:bg-red-600 animate-pulse" 
                           : "bg-green-600 hover:bg-green-700"
                       )}
                       size="icon"
                     >
-                      <Mic className="size-5" />
+                      {isMicEnabled ? <MicIcon className="size-5" /> : <MicOffIcon className="size-5" />}
                     </Button>
                   </div>
 
                   {/* Instructions */}
                   <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-400 justify-center">
                     <span>💬 Type your question and press Enter</span>
-                    <span>🎤 Hold voice button to speak</span>
+                    <span>🎤 Click mic to toggle voice input</span>
                     <span>📎 Click + to upload documents</span>
                   </div>
                 </div>
