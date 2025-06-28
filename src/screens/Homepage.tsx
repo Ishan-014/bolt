@@ -89,6 +89,7 @@ export const Homepage: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isPersonaActive, setIsPersonaActive] = useState(false);
   const [conversationStartTime, setConversationStartTime] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount } = useUserFiles();
@@ -120,47 +121,35 @@ export const Homepage: React.FC = () => {
   useEffect(() => {
     if (remoteParticipantIds.length && !start) {
       setStart(true);
-      setConversationStartTime(Date.now()); // Track when conversation actually starts
-      console.log('Persona joined - conversation started');
+      setConversationStartTime(Date.now());
+      setTimeRemaining(60); // 1 minute = 60 seconds
+      console.log('Persona joined - starting 1 minute timer');
       
-      // Keep mic off initially but ensure audio connection is stable
+      // Keep mic off initially
       setTimeout(() => {
         daily?.setLocalAudio(false);
-        console.log('Audio connection stabilized');
-      }, 2000);
+      }, 1000);
     }
   }, [remoteParticipantIds, start]);
 
-  // Keep conversation alive for at least 1 minute
+  // 1-minute countdown timer
   useEffect(() => {
-    if (!conversationStartTime || !conversation?.conversation_id) return;
-
-    const keepAliveInterval = setInterval(() => {
-      const elapsed = Date.now() - conversationStartTime;
-      
-      // Send keep-alive messages every 15 seconds for the first minute
-      if (elapsed < 60000) { // 1 minute
-        console.log('Sending keep-alive message to maintain conversation');
+    if (conversationStartTime && timeRemaining !== null) {
+      const timer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - conversationStartTime) / 1000);
+        const remaining = Math.max(0, 60 - elapsed);
+        setTimeRemaining(remaining);
         
-        // Send a subtle keep-alive message that won't interrupt the persona
-        daily?.sendAppMessage({
-          message_type: "conversation",
-          event_type: "conversation.ping", // Use ping to keep connection alive
-          conversation_id: conversation.conversation_id,
-          properties: {
-            keep_alive: true,
-            timestamp: Date.now()
-          },
-        });
-      } else {
-        // After 1 minute, clear the interval
-        clearInterval(keepAliveInterval);
-        console.log('Conversation keep-alive period ended - persona can now leave naturally');
-      }
-    }, 15000); // Every 15 seconds
+        if (remaining === 0) {
+          console.log('1 minute completed - ending conversation');
+          stopPersonaChat();
+          clearInterval(timer);
+        }
+      }, 1000);
 
-    return () => clearInterval(keepAliveInterval);
-  }, [conversationStartTime, conversation, daily]);
+      return () => clearInterval(timer);
+    }
+  }, [conversationStartTime, timeRemaining]);
 
   useEffect(() => {
     if (conversation?.conversation_url && hasMediaAccess) {
@@ -171,9 +160,6 @@ export const Homepage: React.FC = () => {
           url: conversation.conversation_url,
           startVideoOff: true,
           startAudioOff: true,
-          // Add configuration to maintain connection
-          subscribeToTracksAutomatically: true,
-          activeSpeakerMode: true,
         })
         .then(() => {
           console.log('Successfully joined Daily.co room');
@@ -181,18 +167,20 @@ export const Homepage: React.FC = () => {
           daily?.setLocalAudio(false);
           setIsPersonaActive(true);
           
-          // Send initial greeting to engage the persona immediately
+          // Send initial greeting after a short delay
           setTimeout(() => {
-            daily?.sendAppMessage({
-              message_type: "conversation",
-              event_type: "conversation.echo",
-              conversation_id: conversation.conversation_id,
-              properties: {
-                modality: "text",
-                text: "Hello! I'm ready to discuss my financial goals with you.",
-              },
-            });
-          }, 3000);
+            if (conversation?.conversation_id) {
+              daily?.sendAppMessage({
+                message_type: "conversation",
+                event_type: "conversation.echo",
+                conversation_id: conversation.conversation_id,
+                properties: {
+                  modality: "text",
+                  text: "Hello! I'm ready to discuss my financial goals with you.",
+                },
+              });
+            }
+          }, 2000);
         })
         .catch((error) => {
           console.error('Failed to join Daily.co room:', error);
@@ -208,7 +196,7 @@ export const Homepage: React.FC = () => {
     const handleAppMessage = (event: any) => {
       console.log('Received app message:', event);
       
-      // Handle different types of conversation events
+      // Handle Tavus conversation responses
       if (event.data?.event_type === 'conversation.response' || 
           event.data?.event_type === 'conversation.participant_response') {
         const responseText = event.data.properties?.text || 
@@ -226,80 +214,29 @@ export const Homepage: React.FC = () => {
       }
     };
 
-    // Listen for participant events to detect when persona leaves
     const handleParticipantLeft = (event: any) => {
       console.log('Participant left:', event);
       
       if (event.participant?.session_id !== localSessionId) {
-        const elapsed = conversationStartTime ? Date.now() - conversationStartTime : 0;
-        console.log(`Persona left after ${elapsed}ms`);
-        
-        // If persona leaves too early (before 1 minute), try to reconnect
-        if (elapsed < 60000 && conversation?.conversation_id) {
-          console.log('Persona left too early - attempting to maintain conversation');
-          
-          // Send a message to try to re-engage
-          setTimeout(() => {
-            daily?.sendAppMessage({
-              message_type: "conversation",
-              event_type: "conversation.echo",
-              conversation_id: conversation.conversation_id,
-              properties: {
-                modality: "text",
-                text: "Are you still there? I'd like to continue our financial discussion.",
-              },
-            });
-          }, 2000);
-        }
+        console.log('Persona left the conversation');
+        // Don't try to reconnect - let it end naturally
       }
     };
 
     const handleParticipantJoined = (event: any) => {
       console.log('Participant joined:', event);
-      
-      if (event.participant?.session_id !== localSessionId) {
-        console.log('Persona joined the conversation');
-        
-        // Send welcome message when persona joins
-        setTimeout(() => {
-          if (conversation?.conversation_id) {
-            daily?.sendAppMessage({
-              message_type: "conversation",
-              event_type: "conversation.echo",
-              conversation_id: conversation.conversation_id,
-              properties: {
-                modality: "text",
-                text: "Welcome! I'm excited to work with you on my financial planning.",
-              },
-            });
-          }
-        }, 1000);
-      }
-    };
-
-    // Listen for connection events
-    const handleJoinedMeeting = () => {
-      console.log('Successfully joined the meeting');
-    };
-
-    const handleLeftMeeting = () => {
-      console.log('Left the meeting');
     };
 
     daily.on('app-message', handleAppMessage);
     daily.on('participant-left', handleParticipantLeft);
     daily.on('participant-joined', handleParticipantJoined);
-    daily.on('joined-meeting', handleJoinedMeeting);
-    daily.on('left-meeting', handleLeftMeeting);
 
     return () => {
       daily.off('app-message', handleAppMessage);
       daily.off('participant-left', handleParticipantLeft);
       daily.off('participant-joined', handleParticipantJoined);
-      daily.off('joined-meeting', handleJoinedMeeting);
-      daily.off('left-meeting', handleLeftMeeting);
     };
-  }, [daily, localSessionId, conversationStartTime, conversation]);
+  }, [daily, localSessionId]);
 
   const handleFileUploadComplete = (uploadedFiles: any[]) => {
     console.log('Files uploaded successfully:', uploadedFiles);
@@ -316,7 +253,7 @@ export const Homepage: React.FC = () => {
       
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Request only microphone access (no camera needed)
+      // Request only microphone access
       const res = await daily?.startCamera({
         startVideoOff: true,
         startAudioOff: true,
@@ -369,6 +306,7 @@ export const Homepage: React.FC = () => {
     setChatMessages([]);
     setIsMicEnabled(false);
     setConversationStartTime(null);
+    setTimeRemaining(null);
   };
 
   const openSettings = () => {
@@ -446,16 +384,6 @@ export const Homepage: React.FC = () => {
           type: 'voice'
         };
         setChatMessages(prev => [...prev, voiceMessage]);
-        
-        // Enable voice input mode for Tavus
-        daily?.sendAppMessage({
-          message_type: "conversation",
-          event_type: "conversation.interrupt",
-          conversation_id: conversation.conversation_id,
-          properties: {
-            modality: "audio",
-          },
-        });
       } else {
         console.log('Microphone disabled');
         
@@ -747,6 +675,12 @@ export const Homepage: React.FC = () => {
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="h-screen bg-gray-900 flex overflow-hidden">
       {/* Left Sidebar - Financial Overview */}
@@ -997,6 +931,15 @@ export const Homepage: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Timer Display */}
+                  {timeRemaining !== null && (
+                    <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2">
+                      <div className="text-white text-sm font-medium">
+                        Time Remaining: {formatTime(timeRemaining)}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Chat Messages Overlay - Positioned at bottom with gradient fade */}
                   <div className="absolute bottom-20 left-4 right-4 max-h-48 overflow-hidden">
                     <div 
@@ -1076,13 +1019,13 @@ export const Homepage: React.FC = () => {
                       </Button>
                     </div>
 
-                    {/* Microphone Toggle Button - No more blinking */}
+                    {/* Microphone Toggle Button */}
                     <Button
                       onClick={toggleMicrophone}
                       className={cn(
                         "h-12 w-12 rounded-lg transition-all duration-200",
                         isMicEnabled 
-                          ? "bg-red-500 hover:bg-red-600" // Removed animate-pulse
+                          ? "bg-red-500 hover:bg-red-600" 
                           : "bg-green-600 hover:bg-green-700"
                       )}
                       size="icon"
@@ -1096,6 +1039,9 @@ export const Homepage: React.FC = () => {
                     <span>💬 Type your question and press Enter</span>
                     <span>🎤 Click mic to toggle voice input</span>
                     <span>📎 Click + to upload documents</span>
+                    {timeRemaining !== null && (
+                      <span>⏱️ Conversation ends automatically after 1 minute</span>
+                    )}
                   </div>
                 </div>
               </div>
