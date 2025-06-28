@@ -140,6 +140,32 @@ export const Homepage: React.FC = () => {
     }
   }, [conversation?.conversation_url, hasMediaAccess]);
 
+  // Listen for persona responses
+  useEffect(() => {
+    if (!daily) return;
+
+    const handleAppMessage = (event: any) => {
+      console.log('Received app message:', event);
+      
+      if (event.data?.event_type === 'conversation.response') {
+        const assistantMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: event.data.properties?.text || 'I received your message.',
+          timestamp: new Date(),
+          type: 'text'
+        };
+        setChatMessages(prev => [...prev, assistantMessage]);
+      }
+    };
+
+    daily.on('app-message', handleAppMessage);
+
+    return () => {
+      daily.off('app-message', handleAppMessage);
+    };
+  }, [daily]);
+
   const handleFileUploadComplete = (uploadedFiles: any[]) => {
     console.log('Files uploaded successfully:', uploadedFiles);
     setActiveSection('uploaded-documents');
@@ -239,10 +265,10 @@ export const Homepage: React.FC = () => {
       };
       setChatMessages(prev => [...prev, userMessage]);
 
-      // Send to persona
+      // Send to persona using the correct event type for actual conversation
       daily?.sendAppMessage({
         message_type: "conversation",
-        event_type: "conversation.echo",
+        event_type: "conversation.input",
         conversation_id: conversation.conversation_id,
         properties: {
           modality: "text",
@@ -281,8 +307,20 @@ export const Homepage: React.FC = () => {
         type: 'voice'
       };
       setChatMessages(prev => [...prev, voiceMessage]);
+
+      // Send voice input to persona
+      if (conversation?.conversation_id) {
+        daily?.sendAppMessage({
+          message_type: "conversation",
+          event_type: "conversation.input",
+          conversation_id: conversation.conversation_id,
+          properties: {
+            modality: "audio",
+          },
+        });
+      }
     }
-  }, [daily, isListening]);
+  }, [daily, isListening, conversation]);
 
   const fileCount = getFileCount();
 
