@@ -80,13 +80,15 @@ input::placeholder {
 
 /* Hide scrollbars for Financial Overview and Jargon Guide */
 .financial-overview-scroll-container,
-.jargon-scroll-container {
+.jargon-scroll-container,
+.scrollbar-hide {
   /* Hide scrollbar for WebKit browsers (Chrome, Safari, Edge) */
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
 
 .financial-overview-scroll-container::-webkit-scrollbar,
-.jargon-scroll-container::-webkit-scrollbar {
+.jargon-scroll-container::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Chrome, Safari, Opera */
 }

@@ -139,18 +139,24 @@ export const Homepage: React.FC = () => {
     }
   }, [conversation?.conversation_url, hasMediaAccess]);
 
-  // Listen for persona responses
+  // Listen for Daily.co events and Tavus responses
   useEffect(() => {
     if (!daily) return;
 
     const handleAppMessage = (event: any) => {
       console.log('Received app message:', event);
       
-      if (event.data?.event_type === 'conversation.response') {
+      // Handle different types of conversation events
+      if (event.data?.event_type === 'conversation.response' || 
+          event.data?.event_type === 'conversation.participant_response') {
+        const responseText = event.data.properties?.text || 
+                           event.data.properties?.content ||
+                           'I received your message.';
+        
         const assistantMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'assistant',
-          content: event.data.properties?.text || 'I received your message.',
+          content: responseText,
           timestamp: new Date(),
           type: 'text'
         };
@@ -158,12 +164,24 @@ export const Homepage: React.FC = () => {
       }
     };
 
+    // Listen for participant speech events
+    const handleParticipantUpdated = (event: any) => {
+      console.log('Participant updated:', event);
+      
+      if (event.participant?.audio && event.participant.session_id !== localSessionId) {
+        // Remote participant (persona) is speaking
+        console.log('Persona is speaking');
+      }
+    };
+
     daily.on('app-message', handleAppMessage);
+    daily.on('participant-updated', handleParticipantUpdated);
 
     return () => {
       daily.off('app-message', handleAppMessage);
+      daily.off('participant-updated', handleParticipantUpdated);
     };
-  }, [daily]);
+  }, [daily, localSessionId]);
 
   const handleFileUploadComplete = (uploadedFiles: any[]) => {
     console.log('Files uploaded successfully:', uploadedFiles);
@@ -265,10 +283,10 @@ export const Homepage: React.FC = () => {
       };
       setChatMessages(prev => [...prev, userMessage]);
 
-      // Send to persona using the correct event type for actual conversation
+      // Send to persona using the correct Tavus API event
       daily?.sendAppMessage({
         message_type: "conversation",
-        event_type: "conversation.input",
+        event_type: "conversation.echo",
         conversation_id: conversation.conversation_id,
         properties: {
           modality: "text",
@@ -290,28 +308,37 @@ export const Homepage: React.FC = () => {
     if (hasMediaAccess && conversation?.conversation_id) {
       const newMicState = !isMicEnabled;
       setIsMicEnabled(newMicState);
+      
+      // Actually enable/disable the microphone in Daily.co
       daily?.setLocalAudio(newMicState);
       
       if (newMicState) {
-        // Mic turned on - send voice input signal
-        daily?.sendAppMessage({
-          message_type: "conversation",
-          event_type: "conversation.input",
-          conversation_id: conversation.conversation_id,
-          properties: {
-            modality: "audio",
-          },
-        });
+        console.log('Microphone enabled - starting voice input');
         
         // Add voice message indicator
         const voiceMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'user',
-          content: 'Speaking...',
+          content: 'Listening...',
           timestamp: new Date(),
           type: 'voice'
         };
         setChatMessages(prev => [...prev, voiceMessage]);
+        
+        // Enable voice input mode for Tavus
+        daily?.sendAppMessage({
+          message_type: "conversation",
+          event_type: "conversation.interrupt",
+          conversation_id: conversation.conversation_id,
+          properties: {
+            modality: "audio",
+          },
+        });
+      } else {
+        console.log('Microphone disabled');
+        
+        // Remove the "Listening..." message when mic is turned off
+        setChatMessages(prev => prev.filter(msg => msg.content !== 'Listening...'));
       }
     }
   }, [daily, hasMediaAccess, isMicEnabled, conversation]);
@@ -927,13 +954,13 @@ export const Homepage: React.FC = () => {
                       </Button>
                     </div>
 
-                    {/* Microphone Toggle Button */}
+                    {/* Microphone Toggle Button - No more blinking */}
                     <Button
                       onClick={toggleMicrophone}
                       className={cn(
                         "h-12 w-12 rounded-lg transition-all duration-200",
                         isMicEnabled 
-                          ? "bg-red-500 hover:bg-red-600 animate-pulse" 
+                          ? "bg-red-500 hover:bg-red-600" // Removed animate-pulse
                           : "bg-green-600 hover:bg-green-700"
                       )}
                       size="icon"
