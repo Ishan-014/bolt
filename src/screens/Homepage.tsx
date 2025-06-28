@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/FileUpload';
 import { FileManager } from '@/components/FileManager';
 import { JargonGuide } from '@/components/JargonGuide';
+import { VoiceTranscript } from '@/components/VoiceTranscript';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useAtom } from 'jotai';
 import { screenAtom } from '@/store/screens';
 import { useAuth } from '@/hooks/useAuth';
@@ -90,6 +92,8 @@ export const Homepage: React.FC = () => {
   const [isPersonaActive, setIsPersonaActive] = useState(false);
   const [conversationStartTime, setConversationStartTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [speechError, setSpeechError] = useState<string | null>(null);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount } = useUserFiles();
@@ -108,6 +112,66 @@ export const Homepage: React.FC = () => {
     audioObj.volume = 0.7;
     return audioObj;
   }, []);
+
+  // Speech recognition hook
+  const {
+    isListening: isSpeechListening,
+    transcript: speechTranscript,
+    interimTranscript,
+    isSupported: isSpeechSupported,
+    startListening,
+    stopListening,
+    resetTranscript
+  } = useSpeechRecognition({
+    onResult: (result) => {
+      if (result.isFinal && result.transcript.trim()) {
+        // Send the final transcript as a message
+        const finalTranscript = result.transcript.trim();
+        setVoiceTranscript(finalTranscript);
+        
+        // Add to chat messages
+        const userMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'user',
+          content: finalTranscript,
+          timestamp: new Date(),
+          type: 'voice'
+        };
+        setChatMessages(prev => [...prev, userMessage]);
+
+        // Send to persona
+        if (conversation?.conversation_id) {
+          daily?.sendAppMessage({
+            message_type: "conversation",
+            event_type: "conversation.echo",
+            conversation_id: conversation.conversation_id,
+            properties: {
+              modality: "text",
+              text: finalTranscript,
+            },
+          });
+        }
+
+        // Reset transcript after sending
+        setTimeout(() => {
+          resetTranscript();
+          setVoiceTranscript('');
+        }, 1000);
+      }
+    },
+    onEnd: () => {
+      console.log('Speech recognition ended');
+      setSpeechError(null);
+    },
+    onError: (error) => {
+      console.error('Speech recognition error:', error);
+      setSpeechError(error);
+      setIsMicEnabled(false);
+      daily?.setLocalAudio(false);
+    },
+    language: 'en-US',
+    continuous: true
+  });
 
   // Set the API key automatically
   React.useEffect(() => {
@@ -247,6 +311,7 @@ export const Homepage: React.FC = () => {
     try {
       setIsStarting(true);
       setMediaError(null);
+      setSpeechError(null);
       
       audio.currentTime = 0;
       await audio.play();
@@ -299,6 +364,12 @@ export const Homepage: React.FC = () => {
     if (daily) {
       daily.leave();
     }
+    
+    // Stop speech recognition
+    if (isSpeechListening) {
+      stopListening();
+    }
+    
     setIsPersonaActive(false);
     setConversation(null);
     setHasMediaAccess(false);
@@ -307,6 +378,9 @@ export const Homepage: React.FC = () => {
     setIsMicEnabled(false);
     setConversationStartTime(null);
     setTimeRemaining(null);
+    setVoiceTranscript('');
+    setSpeechError(null);
+    resetTranscript();
   };
 
   const openSettings = () => {
@@ -374,24 +448,30 @@ export const Homepage: React.FC = () => {
       
       if (newMicState) {
         console.log('Microphone enabled - starting voice input');
+        setSpeechError(null);
         
-        // Add voice message indicator
-        const voiceMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'user',
-          content: 'Listening...',
-          timestamp: new Date(),
-          type: 'voice'
-        };
-        setChatMessages(prev => [...prev, voiceMessage]);
+        // Start speech recognition
+        if (isSpeechSupported) {
+          startListening();
+        } else {
+          setSpeechError('Speech recognition not supported in this browser');
+          setIsMicEnabled(false);
+          daily?.setLocalAudio(false);
+        }
       } else {
         console.log('Microphone disabled');
         
-        // Remove the "Listening..." message when mic is turned off
-        setChatMessages(prev => prev.filter(msg => msg.content !== 'Listening...'));
+        // Stop speech recognition
+        if (isSpeechListening) {
+          stopListening();
+        }
+        
+        resetTranscript();
+        setVoiceTranscript('');
+        setSpeechError(null);
       }
     }
-  }, [daily, hasMediaAccess, isMicEnabled, conversation]);
+  }, [daily, hasMediaAccess, isMicEnabled, conversation, isSpeechSupported, isSpeechListening, startListening, stopListening, resetTranscript]);
 
   const fileCount = getFileCount();
 
@@ -892,6 +972,13 @@ export const Homepage: React.FC = () => {
                     </div>
                   )}
 
+                  {speechError && (
+                    <div className="mb-6 flex items-center gap-2 text-wrap rounded-lg border bg-yellow-500/20 border-yellow-500/50 p-4 text-yellow-200 backdrop-blur-sm">
+                      <AlertTriangle className="size-5 flex-shrink-0" />
+                      <p className="text-sm">{speechError}</p>
+                    </div>
+                  )}
+
                   <Button
                     onClick={startPersonaChat}
                     disabled={isStarting}
@@ -937,6 +1024,17 @@ export const Homepage: React.FC = () => {
                       <div className="text-white text-sm font-medium">
                         Time Remaining: {formatTime(timeRemaining)}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Voice Transcript Display */}
+                  {(isSpeechListening || speechTranscript || interimTranscript) && (
+                    <div className="absolute top-4 right-4">
+                      <VoiceTranscript
+                        isListening={isSpeechListening}
+                        transcript={speechTranscript}
+                        interimTranscript={interimTranscript}
+                      />
                     </div>
                   )}
 
