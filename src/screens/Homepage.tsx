@@ -88,6 +88,7 @@ export const Homepage: React.FC = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isPersonaActive, setIsPersonaActive] = useState(false);
+  const [conversationStartTime, setConversationStartTime] = useState<number | null>(null);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount } = useUserFiles();
@@ -119,22 +120,83 @@ export const Homepage: React.FC = () => {
   useEffect(() => {
     if (remoteParticipantIds.length && !start) {
       setStart(true);
-      setTimeout(() => daily?.setLocalAudio(false), 4000); // Keep mic off by default
+      setConversationStartTime(Date.now()); // Track when conversation actually starts
+      console.log('Persona joined - conversation started');
+      
+      // Keep mic off initially but ensure audio connection is stable
+      setTimeout(() => {
+        daily?.setLocalAudio(false);
+        console.log('Audio connection stabilized');
+      }, 2000);
     }
   }, [remoteParticipantIds, start]);
 
+  // Keep conversation alive for at least 1 minute
+  useEffect(() => {
+    if (!conversationStartTime || !conversation?.conversation_id) return;
+
+    const keepAliveInterval = setInterval(() => {
+      const elapsed = Date.now() - conversationStartTime;
+      
+      // Send keep-alive messages every 15 seconds for the first minute
+      if (elapsed < 60000) { // 1 minute
+        console.log('Sending keep-alive message to maintain conversation');
+        
+        // Send a subtle keep-alive message that won't interrupt the persona
+        daily?.sendAppMessage({
+          message_type: "conversation",
+          event_type: "conversation.ping", // Use ping to keep connection alive
+          conversation_id: conversation.conversation_id,
+          properties: {
+            keep_alive: true,
+            timestamp: Date.now()
+          },
+        });
+      } else {
+        // After 1 minute, clear the interval
+        clearInterval(keepAliveInterval);
+        console.log('Conversation keep-alive period ended - persona can now leave naturally');
+      }
+    }, 15000); // Every 15 seconds
+
+    return () => clearInterval(keepAliveInterval);
+  }, [conversationStartTime, conversation, daily]);
+
   useEffect(() => {
     if (conversation?.conversation_url && hasMediaAccess) {
+      console.log('Joining conversation with URL:', conversation.conversation_url);
+      
       daily
         ?.join({
           url: conversation.conversation_url,
-          startVideoOff: true, // No camera needed for user
+          startVideoOff: true,
           startAudioOff: true,
+          // Add configuration to maintain connection
+          subscribeToTracksAutomatically: true,
+          activeSpeakerMode: true,
         })
         .then(() => {
-          daily?.setLocalVideo(false); // Disable user camera
-          daily?.setLocalAudio(false); // Keep mic off initially
+          console.log('Successfully joined Daily.co room');
+          daily?.setLocalVideo(false);
+          daily?.setLocalAudio(false);
           setIsPersonaActive(true);
+          
+          // Send initial greeting to engage the persona immediately
+          setTimeout(() => {
+            daily?.sendAppMessage({
+              message_type: "conversation",
+              event_type: "conversation.echo",
+              conversation_id: conversation.conversation_id,
+              properties: {
+                modality: "text",
+                text: "Hello! I'm ready to discuss my financial goals with you.",
+              },
+            });
+          }, 3000);
+        })
+        .catch((error) => {
+          console.error('Failed to join Daily.co room:', error);
+          setMediaError('Failed to connect to the conversation. Please try again.');
         });
     }
   }, [conversation?.conversation_url, hasMediaAccess]);
@@ -164,24 +226,80 @@ export const Homepage: React.FC = () => {
       }
     };
 
-    // Listen for participant speech events
-    const handleParticipantUpdated = (event: any) => {
-      console.log('Participant updated:', event);
+    // Listen for participant events to detect when persona leaves
+    const handleParticipantLeft = (event: any) => {
+      console.log('Participant left:', event);
       
-      if (event.participant?.audio && event.participant.session_id !== localSessionId) {
-        // Remote participant (persona) is speaking
-        console.log('Persona is speaking');
+      if (event.participant?.session_id !== localSessionId) {
+        const elapsed = conversationStartTime ? Date.now() - conversationStartTime : 0;
+        console.log(`Persona left after ${elapsed}ms`);
+        
+        // If persona leaves too early (before 1 minute), try to reconnect
+        if (elapsed < 60000 && conversation?.conversation_id) {
+          console.log('Persona left too early - attempting to maintain conversation');
+          
+          // Send a message to try to re-engage
+          setTimeout(() => {
+            daily?.sendAppMessage({
+              message_type: "conversation",
+              event_type: "conversation.echo",
+              conversation_id: conversation.conversation_id,
+              properties: {
+                modality: "text",
+                text: "Are you still there? I'd like to continue our financial discussion.",
+              },
+            });
+          }, 2000);
+        }
       }
     };
 
+    const handleParticipantJoined = (event: any) => {
+      console.log('Participant joined:', event);
+      
+      if (event.participant?.session_id !== localSessionId) {
+        console.log('Persona joined the conversation');
+        
+        // Send welcome message when persona joins
+        setTimeout(() => {
+          if (conversation?.conversation_id) {
+            daily?.sendAppMessage({
+              message_type: "conversation",
+              event_type: "conversation.echo",
+              conversation_id: conversation.conversation_id,
+              properties: {
+                modality: "text",
+                text: "Welcome! I'm excited to work with you on my financial planning.",
+              },
+            });
+          }
+        }, 1000);
+      }
+    };
+
+    // Listen for connection events
+    const handleJoinedMeeting = () => {
+      console.log('Successfully joined the meeting');
+    };
+
+    const handleLeftMeeting = () => {
+      console.log('Left the meeting');
+    };
+
     daily.on('app-message', handleAppMessage);
-    daily.on('participant-updated', handleParticipantUpdated);
+    daily.on('participant-left', handleParticipantLeft);
+    daily.on('participant-joined', handleParticipantJoined);
+    daily.on('joined-meeting', handleJoinedMeeting);
+    daily.on('left-meeting', handleLeftMeeting);
 
     return () => {
       daily.off('app-message', handleAppMessage);
-      daily.off('participant-updated', handleParticipantUpdated);
+      daily.off('participant-left', handleParticipantLeft);
+      daily.off('participant-joined', handleParticipantJoined);
+      daily.off('joined-meeting', handleJoinedMeeting);
+      daily.off('left-meeting', handleLeftMeeting);
     };
-  }, [daily, localSessionId]);
+  }, [daily, localSessionId, conversationStartTime, conversation]);
 
   const handleFileUploadComplete = (uploadedFiles: any[]) => {
     console.log('Files uploaded successfully:', uploadedFiles);
@@ -201,7 +319,7 @@ export const Homepage: React.FC = () => {
       // Request only microphone access (no camera needed)
       const res = await daily?.startCamera({
         startVideoOff: true,
-        startAudioOff: true, // Start with mic off
+        startAudioOff: true,
         audioSource: "default",
       });
 
@@ -223,7 +341,9 @@ export const Homepage: React.FC = () => {
 
         // Start conversation after media access is granted
         if (token) {
+          console.log('Creating new conversation...');
           const newConversation = await createConversation(token);
+          console.log('Conversation created:', newConversation);
           setConversation(newConversation);
         }
       } else {
@@ -238,6 +358,7 @@ export const Homepage: React.FC = () => {
   };
 
   const stopPersonaChat = () => {
+    console.log('Stopping persona chat');
     if (daily) {
       daily.leave();
     }
@@ -247,6 +368,7 @@ export const Homepage: React.FC = () => {
     setStart(false);
     setChatMessages([]);
     setIsMicEnabled(false);
+    setConversationStartTime(null);
   };
 
   const openSettings = () => {
