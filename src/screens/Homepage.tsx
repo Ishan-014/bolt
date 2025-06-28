@@ -4,11 +4,12 @@ import { FileUpload } from '@/components/FileUpload';
 import { FileManager } from '@/components/FileManager';
 import { JargonGuide } from '@/components/JargonGuide';
 import { VoiceTranscript } from '@/components/VoiceTranscript';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useAtom } from 'jotai';
 import { screenAtom } from '@/store/screens';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserFiles } from '@/hooks/useUserFiles';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useFinancialChat } from '@/hooks/useFinancialChat';
 import { conversationAtom } from '@/store/conversation';
 import { createConversation } from '@/api';
 import { apiTokenAtom } from '@/store/tokens';
@@ -74,6 +75,7 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   type: 'text' | 'voice';
+  isInterim?: boolean;
 }
 
 export const Homepage: React.FC = () => {
@@ -85,18 +87,15 @@ export const Homepage: React.FC = () => {
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
-  const [isMicEnabled, setIsMicEnabled] = useState(false);
   const [start, setStart] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isPersonaActive, setIsPersonaActive] = useState(false);
-  const [conversationStartTime, setConversationStartTime] = useState<number | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [voiceTranscript, setVoiceTranscript] = useState('');
-  const [speechError, setSpeechError] = useState<string | null>(null);
+  const [currentInterimMessageId, setCurrentInterimMessageId] = useState<string | null>(null);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount } = useUserFiles();
+  const { generateResponse, isGenerating } = useFinancialChat();
 
   // Daily.co hooks
   const daily = useDaily();
@@ -105,76 +104,96 @@ export const Homepage: React.FC = () => {
   const localVideo = useVideoTrack(localSessionId);
   const localAudio = useAudioTrack(localSessionId);
   const isCameraEnabled = !localVideo.isOff;
+  const isMicEnabled = !localAudio.isOff;
   const remoteParticipantIds = useParticipantIds({ filter: "remote" });
+
+  // Speech recognition
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    isSupported: speechSupported,
+    startListening,
+    stopListening,
+    resetTranscript
+  } = useSpeechRecognition({
+    onResult: (result) => {
+      console.log('Speech result:', result);
+      
+      if (!result.isFinal && result.transcript) {
+        // Handle interim results - show real-time transcription
+        if (currentInterimMessageId) {
+          // Update existing interim message
+          setChatMessages(prev => prev.map(msg => 
+            msg.id === currentInterimMessageId 
+              ? { ...msg, content: result.transcript }
+              : msg
+          ));
+        } else {
+          // Create new interim message
+          const interimId = `interim-${Date.now()}`;
+          const interimMessage: ChatMessage = {
+            id: interimId,
+            role: 'user',
+            content: result.transcript,
+            timestamp: new Date(),
+            type: 'voice',
+            isInterim: true
+          };
+          setChatMessages(prev => [...prev, interimMessage]);
+          setCurrentInterimMessageId(interimId);
+        }
+      } else if (result.isFinal && result.transcript.trim()) {
+        // Handle final result
+        if (currentInterimMessageId) {
+          // Replace interim message with final one
+          setChatMessages(prev => prev.map(msg => 
+            msg.id === currentInterimMessageId 
+              ? { ...msg, content: result.transcript.trim(), isInterim: false }
+              : msg
+          ));
+          setCurrentInterimMessageId(null);
+        } else {
+          // Create new final message
+          const finalMessage: ChatMessage = {
+            id: `voice-${Date.now()}`,
+            role: 'user',
+            content: result.transcript.trim(),
+            timestamp: new Date(),
+            type: 'voice'
+          };
+          setChatMessages(prev => [...prev, finalMessage]);
+        }
+        
+        // Send to AI and get response
+        handleSendMessage(result.transcript.trim());
+        resetTranscript();
+      }
+    },
+    onEnd: () => {
+      console.log('Speech recognition ended');
+      // Clean up any interim message if speech ended without final result
+      if (currentInterimMessageId) {
+        setChatMessages(prev => prev.filter(msg => msg.id !== currentInterimMessageId));
+        setCurrentInterimMessageId(null);
+      }
+    },
+    onError: (error) => {
+      console.error('Speech recognition error:', error);
+      setMediaError(error);
+      // Clean up interim message on error
+      if (currentInterimMessageId) {
+        setChatMessages(prev => prev.filter(msg => msg.id !== currentInterimMessageId));
+        setCurrentInterimMessageId(null);
+      }
+    }
+  });
 
   const audio = useMemo(() => {
     const audioObj = new Audio(zoomSound);
     audioObj.volume = 0.7;
     return audioObj;
   }, []);
-
-  // Speech recognition hook
-  const {
-    isListening: isSpeechListening,
-    transcript: speechTranscript,
-    interimTranscript,
-    isSupported: isSpeechSupported,
-    startListening,
-    stopListening,
-    resetTranscript
-  } = useSpeechRecognition({
-    onResult: (result) => {
-      console.log('Speech result received:', result);
-      if (result.isFinal && result.transcript.trim()) {
-        // Send the final transcript as a message
-        const finalTranscript = result.transcript.trim();
-        console.log('Final transcript to send:', finalTranscript);
-        setVoiceTranscript(finalTranscript);
-        
-        // Add to chat messages
-        const userMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'user',
-          content: finalTranscript,
-          timestamp: new Date(),
-          type: 'voice'
-        };
-        setChatMessages(prev => [...prev, userMessage]);
-
-        // Send to persona
-        if (conversation?.conversation_id) {
-          console.log('Sending to persona:', finalTranscript);
-          daily?.sendAppMessage({
-            message_type: "conversation",
-            event_type: "conversation.echo",
-            conversation_id: conversation.conversation_id,
-            properties: {
-              modality: "text",
-              text: finalTranscript,
-            },
-          });
-        }
-
-        // Reset transcript after sending
-        setTimeout(() => {
-          resetTranscript();
-          setVoiceTranscript('');
-        }, 1000);
-      }
-    },
-    onEnd: () => {
-      console.log('Speech recognition ended');
-      setSpeechError(null);
-    },
-    onError: (error) => {
-      console.error('Speech recognition error:', error);
-      setSpeechError(error);
-      setIsMicEnabled(false);
-      daily?.setLocalAudio(false);
-    },
-    language: 'en-US',
-    continuous: true
-  });
 
   // Set the API key automatically
   React.useEffect(() => {
@@ -188,143 +207,92 @@ export const Homepage: React.FC = () => {
   useEffect(() => {
     if (remoteParticipantIds.length && !start) {
       setStart(true);
-      setConversationStartTime(Date.now());
-      setTimeRemaining(60); // 1 minute = 60 seconds
-      console.log('Persona joined - starting 1 minute timer');
-      
-      // Keep mic off initially
-      setTimeout(() => {
-        daily?.setLocalAudio(false);
-      }, 1000);
+      setTimeout(() => daily?.setLocalAudio(true), 4000);
     }
   }, [remoteParticipantIds, start]);
 
-  // 1-minute countdown timer
-  useEffect(() => {
-    if (conversationStartTime && timeRemaining !== null) {
-      const timer = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - conversationStartTime) / 1000);
-        const remaining = Math.max(0, 60 - elapsed);
-        setTimeRemaining(remaining);
-        
-        if (remaining === 0) {
-          console.log('1 minute completed - ending conversation');
-          stopPersonaChat();
-          clearInterval(timer);
-        }
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-  }, [conversationStartTime, timeRemaining]);
-
   useEffect(() => {
     if (conversation?.conversation_url && hasMediaAccess) {
-      console.log('Joining conversation with URL:', conversation.conversation_url);
-      
       daily
         ?.join({
           url: conversation.conversation_url,
-          startVideoOff: true,
+          startVideoOff: true, // No camera needed for user
           startAudioOff: true,
         })
         .then(() => {
-          console.log('Successfully joined Daily.co room');
-          daily?.setLocalVideo(false);
+          daily?.setLocalVideo(false); // Disable user camera
           daily?.setLocalAudio(false);
           setIsPersonaActive(true);
-          
-          // Send initial greeting after a short delay
-          setTimeout(() => {
-            if (conversation?.conversation_id) {
-              daily?.sendAppMessage({
-                message_type: "conversation",
-                event_type: "conversation.echo",
-                conversation_id: conversation.conversation_id,
-                properties: {
-                  modality: "text",
-                  text: "Hello! I'm ready to discuss my financial goals with you.",
-                },
-              });
-            }
-          }, 2000);
-        })
-        .catch((error) => {
-          console.error('Failed to join Daily.co room:', error);
-          setMediaError('Failed to connect to the conversation. Please try again.');
         });
     }
   }, [conversation?.conversation_url, hasMediaAccess]);
-
-  // Listen for Daily.co events and Tavus responses
-  useEffect(() => {
-    if (!daily) return;
-
-    const handleAppMessage = (event: any) => {
-      console.log('Received app message:', event);
-      
-      // Handle Tavus conversation responses
-      if (event.data?.event_type === 'conversation.response' || 
-          event.data?.event_type === 'conversation.participant_response') {
-        const responseText = event.data.properties?.text || 
-                           event.data.properties?.content ||
-                           'I received your message.';
-        
-        const assistantMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: responseText,
-          timestamp: new Date(),
-          type: 'text'
-        };
-        setChatMessages(prev => [...prev, assistantMessage]);
-      }
-    };
-
-    const handleParticipantLeft = (event: any) => {
-      console.log('Participant left:', event);
-      
-      if (event.participant?.session_id !== localSessionId) {
-        console.log('Persona left the conversation');
-        // Don't try to reconnect - let it end naturally
-      }
-    };
-
-    const handleParticipantJoined = (event: any) => {
-      console.log('Participant joined:', event);
-    };
-
-    daily.on('app-message', handleAppMessage);
-    daily.on('participant-left', handleParticipantLeft);
-    daily.on('participant-joined', handleParticipantJoined);
-
-    return () => {
-      daily.off('app-message', handleAppMessage);
-      daily.off('participant-left', handleParticipantLeft);
-      daily.off('participant-joined', handleParticipantJoined);
-    };
-  }, [daily, localSessionId]);
 
   const handleFileUploadComplete = (uploadedFiles: any[]) => {
     console.log('Files uploaded successfully:', uploadedFiles);
     setActiveSection('uploaded-documents');
   };
 
+  const handleSendMessage = async (messageText: string) => {
+    if (!messageText.trim()) return;
+
+    try {
+      console.log('Sending message to AI:', messageText);
+      
+      // Generate AI response using Groq
+      const aiResponse = await generateResponse(messageText.trim());
+      
+      // Add AI response to chat
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: aiResponse,
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setChatMessages(prev => [...prev, assistantMessage]);
+
+      // Send AI response to Tavus persona for speech synthesis
+      if (conversation?.conversation_id && daily) {
+        console.log('Sending AI response to Tavus persona:', aiResponse);
+        daily.sendAppMessage({
+          message_type: "conversation",
+          event_type: "conversation.echo",
+          conversation_id: conversation.conversation_id,
+          properties: {
+            modality: "text",
+            text: aiResponse,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error handling message:', error);
+      
+      // Add error message to chat
+      const errorMessage: ChatMessage = {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: "I'm sorry, I'm having trouble processing your request right now. Please try again.",
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
   const startPersonaChat = async () => {
     try {
       setIsStarting(true);
       setMediaError(null);
-      setSpeechError(null);
       
       audio.currentTime = 0;
       await audio.play();
       
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Request only microphone access
+      // Request only microphone access (no camera needed)
       const res = await daily?.startCamera({
         startVideoOff: true,
-        startAudioOff: true,
+        startAudioOff: false,
         audioSource: "default",
       });
 
@@ -346,10 +314,18 @@ export const Homepage: React.FC = () => {
 
         // Start conversation after media access is granted
         if (token) {
-          console.log('Creating new conversation...');
           const newConversation = await createConversation(token);
-          console.log('Conversation created:', newConversation);
           setConversation(newConversation);
+          
+          // Add welcome message
+          const welcomeMessage: ChatMessage = {
+            id: `welcome-${Date.now()}`,
+            role: 'assistant',
+            content: "Hello! I'm your AI financial mentor. I'm here to help you with budgeting, investing, saving, and all your financial goals. What would you like to discuss today?",
+            timestamp: new Date(),
+            type: 'text'
+          };
+          setChatMessages([welcomeMessage]);
         }
       } else {
         throw new Error("Failed to access microphone");
@@ -363,27 +339,18 @@ export const Homepage: React.FC = () => {
   };
 
   const stopPersonaChat = () => {
-    console.log('Stopping persona chat');
     if (daily) {
       daily.leave();
     }
-    
-    // Stop speech recognition
-    if (isSpeechListening) {
-      stopListening();
-    }
-    
     setIsPersonaActive(false);
     setConversation(null);
     setHasMediaAccess(false);
     setStart(false);
     setChatMessages([]);
-    setIsMicEnabled(false);
-    setConversationStartTime(null);
-    setTimeRemaining(null);
-    setVoiceTranscript('');
-    setSpeechError(null);
     resetTranscript();
+    if (currentInterimMessageId) {
+      setCurrentInterimMessageId(null);
+    }
   };
 
   const openSettings = () => {
@@ -409,10 +376,10 @@ export const Homepage: React.FC = () => {
   };
 
   const sendTextMessage = useCallback(() => {
-    if (chatMessage.trim() && conversation?.conversation_id) {
-      // Add user message to chat
+    if (chatMessage.trim()) {
+      // Add user message to chat immediately
       const userMessage: ChatMessage = {
-        id: Date.now().toString(),
+        id: `user-${Date.now()}`,
         role: 'user',
         content: chatMessage.trim(),
         timestamp: new Date(),
@@ -420,19 +387,11 @@ export const Homepage: React.FC = () => {
       };
       setChatMessages(prev => [...prev, userMessage]);
 
-      // Send to persona using the correct Tavus API event
-      daily?.sendAppMessage({
-        message_type: "conversation",
-        event_type: "conversation.echo",
-        conversation_id: conversation.conversation_id,
-        properties: {
-          modality: "text",
-          text: chatMessage.trim(),
-        },
-      });
+      // Send to AI
+      handleSendMessage(chatMessage.trim());
       setChatMessage("");
     }
-  }, [chatMessage, conversation, daily]);
+  }, [chatMessage]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -441,55 +400,24 @@ export const Homepage: React.FC = () => {
     }
   }, [sendTextMessage]);
 
-  const toggleMicrophone = useCallback(() => {
-    console.log('Toggle microphone clicked', { 
-      hasMediaAccess, 
-      isMicEnabled, 
-      conversationId: conversation?.conversation_id,
-      isSpeechSupported 
-    });
-    
-    if (hasMediaAccess && conversation?.conversation_id) {
-      const newMicState = !isMicEnabled;
-      setIsMicEnabled(newMicState);
-      
-      // Actually enable/disable the microphone in Daily.co
-      daily?.setLocalAudio(newMicState);
-      
-      if (newMicState) {
-        console.log('Microphone enabled - starting voice input');
-        setSpeechError(null);
-        
-        // Start speech recognition
-        if (isSpeechSupported) {
-          console.log('Starting speech recognition...');
-          startListening();
-        } else {
-          console.log('Speech recognition not supported');
-          setSpeechError('Speech recognition not supported in this browser');
-          setIsMicEnabled(false);
-          daily?.setLocalAudio(false);
-        }
-      } else {
-        console.log('Microphone disabled');
-        
-        // Stop speech recognition
-        if (isSpeechListening) {
-          console.log('Stopping speech recognition...');
-          stopListening();
-        }
-        
-        resetTranscript();
-        setVoiceTranscript('');
-        setSpeechError(null);
-      }
-    } else {
-      console.log('Cannot toggle microphone - missing requirements');
-      if (!hasMediaAccess) setSpeechError('Media access not granted');
-      if (!conversation?.conversation_id) setSpeechError('No active conversation');
-      if (!isSpeechSupported) setSpeechError('Speech recognition not supported');
+  const startVoiceRecording = useCallback(() => {
+    if (hasMediaAccess && speechSupported && !isListening) {
+      console.log('Starting voice recording...');
+      setMediaError(null);
+      startListening();
+    } else if (!speechSupported) {
+      setMediaError('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+    } else if (!hasMediaAccess) {
+      setMediaError('Please enable microphone access first.');
     }
-  }, [daily, hasMediaAccess, isMicEnabled, conversation, isSpeechSupported, isSpeechListening, startListening, stopListening, resetTranscript]);
+  }, [hasMediaAccess, speechSupported, isListening, startListening]);
+
+  const stopVoiceRecording = useCallback(() => {
+    if (isListening) {
+      console.log('Stopping voice recording...');
+      stopListening();
+    }
+  }, [isListening, stopListening]);
 
   const fileCount = getFileCount();
 
@@ -738,7 +666,7 @@ export const Homepage: React.FC = () => {
                       onClick={handleSignOut}
                       variant="destructive"
                       disabled={isSigningOut}
-                      className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-md text-xs h-6"
+                      className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-md text-xs h-7"
                     >
                       <LogOut className="size-3" />
                       {isSigningOut ? 'Signing Out...' : 'Sign Out'}
@@ -771,12 +699,6 @@ export const Homepage: React.FC = () => {
       default:
         return null;
     }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -990,13 +912,6 @@ export const Homepage: React.FC = () => {
                     </div>
                   )}
 
-                  {speechError && (
-                    <div className="mb-6 flex items-center gap-2 text-wrap rounded-lg border bg-yellow-500/20 border-yellow-500/50 p-4 text-yellow-200 backdrop-blur-sm">
-                      <AlertTriangle className="size-5 flex-shrink-0" />
-                      <p className="text-sm">{speechError}</p>
-                    </div>
-                  )}
-
                   <Button
                     onClick={startPersonaChat}
                     disabled={isStarting}
@@ -1036,61 +951,29 @@ export const Homepage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Timer Display */}
-                  {timeRemaining !== null && (
-                    <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2">
-                      <div className="text-white text-sm font-medium">
-                        Time Remaining: {formatTime(timeRemaining)}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Voice Transcript Display - Always visible when active */}
-                  <div className="absolute top-4 right-4 z-20">
-                    <VoiceTranscript
-                      isListening={isSpeechListening}
-                      transcript={speechTranscript}
-                      interimTranscript={interimTranscript}
-                    />
-                  </div>
-
-                  {/* Speech Error Display */}
-                  {speechError && (
-                    <div className="absolute top-20 right-4 bg-red-500/90 backdrop-blur-sm border border-red-400 rounded-lg p-3 max-w-sm">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="size-4 text-white flex-shrink-0" />
-                        <p className="text-white text-sm">{speechError}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Chat Messages Overlay - Positioned at bottom with gradient fade */}
-                  <div className="absolute bottom-20 left-4 right-4 max-h-48 overflow-hidden">
-                    <div 
-                      className="space-y-3 overflow-y-auto scrollbar-hide pb-4"
-                      style={{
-                        maskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)',
-                        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)'
-                      }}
-                    >
-                      {chatMessages.slice(-3).map((message, index) => (
+                  {/* Chat Messages Overlay */}
+                  <div className="absolute top-4 left-4 right-4 max-h-60 overflow-y-auto scrollbar-hide bg-black/60 backdrop-blur-sm rounded-lg p-4">
+                    <div className="space-y-3">
+                      {chatMessages.map((message) => (
                         <div
                           key={message.id}
-                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
-                          style={{
-                            opacity: 1 - (index * 0.3), // Fade effect for older messages
-                          }}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-xs px-4 py-2 rounded-lg text-sm backdrop-blur-sm ${
+                            className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
                               message.role === 'user'
-                                ? 'bg-green-600/80 text-white'
-                                : 'bg-gray-800/80 text-gray-200 border border-gray-600/50'
+                                ? message.isInterim 
+                                  ? 'bg-green-600/70 text-white border border-green-400'
+                                  : 'bg-green-600 text-white'
+                                : 'bg-gray-700 text-gray-200'
                             }`}
                           >
                             <div className="flex items-center gap-2">
                               {message.type === 'voice' && <Mic className="size-3" />}
-                              <span>{message.content}</span>
+                              <span className={message.isInterim ? 'italic' : ''}>
+                                {message.content}
+                                {message.isInterim && <span className="animate-pulse text-green-200 ml-1">|</span>}
+                              </span>
                             </div>
                             <div className="text-xs opacity-70 mt-1">
                               {message.timestamp.toLocaleTimeString()}
@@ -1098,11 +981,36 @@ export const Homepage: React.FC = () => {
                           </div>
                         </div>
                       ))}
+                      {isGenerating && (
+                        <div className="flex justify-start">
+                          <div className="max-w-xs px-3 py-2 rounded-lg text-sm bg-gray-700 text-gray-200">
+                            <div className="flex items-center gap-2">
+                              <div className="flex gap-1">
+                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
+                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                              </div>
+                              <span className="text-xs text-gray-400">Thinking...</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
+                  {/* Voice Transcript Overlay */}
+                  {(isListening || interimTranscript) && (
+                    <div className="absolute bottom-24 left-4">
+                      <VoiceTranscript
+                        isListening={isListening}
+                        transcript={transcript}
+                        interimTranscript={interimTranscript}
+                      />
+                    </div>
+                  )}
+
                   {/* End Chat Button */}
-                  <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
+                  <div className="absolute top-4 right-4">
                     <Button
                       onClick={stopPersonaChat}
                       className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
@@ -1130,12 +1038,13 @@ export const Homepage: React.FC = () => {
                         onChange={(e) => setChatMessage(e.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder="Ask your financial mentor anything..."
+                        disabled={isGenerating}
                         className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 h-12 rounded-lg"
                         style={{ fontFamily: "'Source Code Pro', monospace" }}
                       />
                       <Button
                         onClick={sendTextMessage}
-                        disabled={!chatMessage.trim()}
+                        disabled={!chatMessage.trim() || isGenerating}
                         className="absolute right-1 top-1 h-10 w-10 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50"
                         size="icon"
                       >
@@ -1143,29 +1052,30 @@ export const Homepage: React.FC = () => {
                       </Button>
                     </div>
 
-                    {/* Microphone Toggle Button */}
+                    {/* Voice Button */}
                     <Button
-                      onClick={toggleMicrophone}
+                      onMouseDown={startVoiceRecording}
+                      onMouseUp={stopVoiceRecording}
+                      onMouseLeave={stopVoiceRecording}
+                      disabled={isGenerating}
                       className={cn(
                         "h-12 w-12 rounded-lg transition-all duration-200",
-                        isMicEnabled 
-                          ? "bg-red-500 hover:bg-red-600" 
+                        isListening 
+                          ? "bg-red-500 hover:bg-red-600 animate-pulse" 
                           : "bg-green-600 hover:bg-green-700"
                       )}
                       size="icon"
                     >
-                      {isMicEnabled ? <MicIcon className="size-5" /> : <MicOffIcon className="size-5" />}
+                      <Mic className="size-5" />
                     </Button>
                   </div>
 
                   {/* Instructions */}
                   <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-400 justify-center">
                     <span>💬 Type your question and press Enter</span>
-                    <span>🎤 Click mic to toggle voice input</span>
+                    <span>🎤 Hold voice button to speak</span>
                     <span>📎 Click + to upload documents</span>
-                    {timeRemaining !== null && (
-                      <span>⏱️ Conversation ends automatically after 1 minute</span>
-                    )}
+                    {!speechSupported && <span className="text-red-400">⚠️ Speech recognition not supported in this browser</span>}
                   </div>
                 </div>
               </div>
