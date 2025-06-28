@@ -124,9 +124,11 @@ export const Homepage: React.FC = () => {
     resetTranscript
   } = useSpeechRecognition({
     onResult: (result) => {
+      console.log('Speech result received:', result);
       if (result.isFinal && result.transcript.trim()) {
         // Send the final transcript as a message
         const finalTranscript = result.transcript.trim();
+        console.log('Final transcript to send:', finalTranscript);
         setVoiceTranscript(finalTranscript);
         
         // Add to chat messages
@@ -141,6 +143,7 @@ export const Homepage: React.FC = () => {
 
         // Send to persona
         if (conversation?.conversation_id) {
+          console.log('Sending to persona:', finalTranscript);
           daily?.sendAppMessage({
             message_type: "conversation",
             event_type: "conversation.echo",
@@ -439,6 +442,13 @@ export const Homepage: React.FC = () => {
   }, [sendTextMessage]);
 
   const toggleMicrophone = useCallback(() => {
+    console.log('Toggle microphone clicked', { 
+      hasMediaAccess, 
+      isMicEnabled, 
+      conversationId: conversation?.conversation_id,
+      isSpeechSupported 
+    });
+    
     if (hasMediaAccess && conversation?.conversation_id) {
       const newMicState = !isMicEnabled;
       setIsMicEnabled(newMicState);
@@ -452,8 +462,10 @@ export const Homepage: React.FC = () => {
         
         // Start speech recognition
         if (isSpeechSupported) {
+          console.log('Starting speech recognition...');
           startListening();
         } else {
+          console.log('Speech recognition not supported');
           setSpeechError('Speech recognition not supported in this browser');
           setIsMicEnabled(false);
           daily?.setLocalAudio(false);
@@ -463,6 +475,7 @@ export const Homepage: React.FC = () => {
         
         // Stop speech recognition
         if (isSpeechListening) {
+          console.log('Stopping speech recognition...');
           stopListening();
         }
         
@@ -470,6 +483,11 @@ export const Homepage: React.FC = () => {
         setVoiceTranscript('');
         setSpeechError(null);
       }
+    } else {
+      console.log('Cannot toggle microphone - missing requirements');
+      if (!hasMediaAccess) setSpeechError('Media access not granted');
+      if (!conversation?.conversation_id) setSpeechError('No active conversation');
+      if (!isSpeechSupported) setSpeechError('Speech recognition not supported');
     }
   }, [daily, hasMediaAccess, isMicEnabled, conversation, isSpeechSupported, isSpeechListening, startListening, stopListening, resetTranscript]);
 
@@ -1027,14 +1045,22 @@ export const Homepage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Voice Transcript Display */}
-                  {(isSpeechListening || speechTranscript || interimTranscript) && (
-                    <div className="absolute top-4 right-4">
-                      <VoiceTranscript
-                        isListening={isSpeechListening}
-                        transcript={speechTranscript}
-                        interimTranscript={interimTranscript}
-                      />
+                  {/* Voice Transcript Display - Always visible when active */}
+                  <div className="absolute top-4 right-4 z-20">
+                    <VoiceTranscript
+                      isListening={isSpeechListening}
+                      transcript={speechTranscript}
+                      interimTranscript={interimTranscript}
+                    />
+                  </div>
+
+                  {/* Speech Error Display */}
+                  {speechError && (
+                    <div className="absolute top-20 right-4 bg-red-500/90 backdrop-blur-sm border border-red-400 rounded-lg p-3 max-w-sm">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="size-4 text-white flex-shrink-0" />
+                        <p className="text-white text-sm">{speechError}</p>
+                      </div>
                     </div>
                   )}
 
@@ -1076,7 +1102,7 @@ export const Homepage: React.FC = () => {
                   </div>
 
                   {/* End Chat Button */}
-                  <div className="absolute top-4 right-4">
+                  <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
                     <Button
                       onClick={stopPersonaChat}
                       className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"

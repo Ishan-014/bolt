@@ -31,6 +31,8 @@ export function useSpeechRecognition({
     // Check if speech recognition is supported
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
+    console.log('Checking speech recognition support:', !!SpeechRecognition);
+    
     if (SpeechRecognition) {
       setIsSupported(true);
       
@@ -46,6 +48,7 @@ export function useSpeechRecognition({
       };
 
       recognition.onresult = (event) => {
+        console.log('Speech recognition result:', event);
         let finalTranscript = '';
         let interimTranscript = '';
 
@@ -55,8 +58,10 @@ export function useSpeechRecognition({
 
           if (result.isFinal) {
             finalTranscript += transcript;
+            console.log('Final transcript:', finalTranscript);
           } else {
             interimTranscript += transcript;
+            console.log('Interim transcript:', interimTranscript);
           }
         }
 
@@ -116,6 +121,7 @@ export function useSpeechRecognition({
     } else {
       console.warn('Speech recognition not supported in this browser');
       setIsSupported(false);
+      onError?.('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
     }
 
     return () => {
@@ -126,25 +132,31 @@ export function useSpeechRecognition({
   }, [language, continuous, onResult, onEnd, onError]);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
+    console.log('Attempting to start listening...', { isSupported, isListening });
+    if (recognitionRef.current && !isListening && isSupported) {
       try {
         setTranscript('');
         setInterimTranscript('');
         recognitionRef.current.start();
+        console.log('Speech recognition start() called');
       } catch (error) {
         console.error('Error starting speech recognition:', error);
         onError?.('Failed to start speech recognition');
       }
+    } else if (!isSupported) {
+      onError?.('Speech recognition is not supported in this browser');
     }
-  }, [isListening, onError]);
+  }, [isListening, isSupported, onError]);
 
   const stopListening = useCallback(() => {
+    console.log('Stopping speech recognition...');
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
     }
   }, [isListening]);
 
   const resetTranscript = useCallback(() => {
+    console.log('Resetting transcript');
     setTranscript('');
     setInterimTranscript('');
   }, []);
