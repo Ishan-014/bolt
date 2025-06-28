@@ -31,9 +31,9 @@ export function useFinancialProfile() {
         .from('financial_profiles')
         .select('*')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error
       }
 
