@@ -390,15 +390,26 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     const createUserProfile = async () => {
       if (user) {
         try {
-          const { data: existingProfile } = await supabase
+          console.log('Checking for existing user profile:', user.id)
+          
+          const { data: existingProfile, error: selectError } = await supabase
             .from('users')
             .select('id')
             .eq('id', user.id)
             .single()
 
-          if (!existingProfile) {
-            console.log('Creating user profile for:', user.email)
-            const { error } = await supabase
+          // If we found a profile, no need to create one
+          if (existingProfile) {
+            console.log('User profile already exists')
+            return
+          }
+
+          // Check if the error is specifically "no rows found" (PGRST116)
+          // This means the profile doesn't exist and we should create it
+          if (selectError && selectError.code === 'PGRST116') {
+            console.log('No existing profile found, creating new user profile for:', user.email)
+            
+            const { error: insertError } = await supabase
               .from('users')
               .insert({
                 id: user.id,
@@ -406,14 +417,28 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
                 full_name: user.user_metadata?.full_name || null,
               })
             
-            if (error) {
-              console.error('Error creating user profile:', error)
+            if (insertError) {
+              // If we get a duplicate key error here, it means another process created the profile
+              // between our check and insert - this is fine, we can ignore it
+              if (insertError.code === '23505') {
+                console.log('User profile was created by another process, continuing...')
+                return
+              }
+              
+              console.error('Error creating user profile:', insertError)
+              throw insertError
             } else {
               console.log('User profile created successfully')
             }
+          } else if (selectError) {
+            // Any other error during the select operation should be thrown
+            console.error('Error checking for existing user profile:', selectError)
+            throw selectError
           }
         } catch (error) {
-          console.error('Error checking/creating user profile:', error)
+          console.error('Error in createUserProfile:', error)
+          // Don't throw the error to prevent breaking the app
+          // The user can still use the app even if profile creation fails
         }
       }
     }
