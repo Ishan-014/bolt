@@ -83,7 +83,7 @@ export const Homepage: React.FC = () => {
   const [currentInterimMessageId, setCurrentInterimMessageId] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null);
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [tutorWidth, setTutorWidth] = useState(320);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount, refetch: refetchFiles } = useUserFiles();
@@ -307,166 +307,75 @@ export const Homepage: React.FC = () => {
     try {
       setIsPlayingAudio(messageId);
 
-      // Stop any currently playing audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-
-      // Stop browser speech synthesis if it's running
+      // Stop any currently playing speech
       if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
       }
 
-      console.log('Attempting to play audio for message:', messageId);
-      console.log('Text to convert:', text.slice(0, 100) + '...');
+      console.log('Playing audio for message:', messageId);
 
-      // Limit text length and clean it
-      const cleanText = text.slice(0, 500).replace(/[^\w\s.,!?-]/g, '');
-      
-      // Use the specific voice ID you provided
-      const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XrExE9yKIg1WjnnlVkGX', {
-        method: 'POST',
-        headers: {
-          'Accept': 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': 'sk_83a44420464c52474ba9830b9613b5ac20d47031117995a9'
-        },
-        body: JSON.stringify({
-          text: cleanText,
-          model_id: 'eleven_monolingual_v1',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.0,
-            use_speaker_boost: true
-          }
-        })
-      });
-
-      console.log('ElevenLabs API response status:', response.status);
-      console.log('ElevenLabs API response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('ElevenLabs API error response:', errorText);
+      // Use browser's built-in speech synthesis with female voice
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
         
-        // Try browser's built-in speech synthesis as fallback
-        if ('speechSynthesis' in window) {
-          console.log('Falling back to browser speech synthesis');
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 0.8;
-          utterance.pitch = 1;
-          utterance.volume = 0.8;
-          
-          utterance.onend = () => {
-            setIsPlayingAudio(null);
-          };
-          
-          utterance.onerror = () => {
-            setIsPlayingAudio(null);
-            throw new Error('Browser speech synthesis failed');
-          };
-          
-          speechSynthesis.speak(utterance);
-          return;
+        // Get available voices and select a female voice
+        const voices = speechSynthesis.getVoices();
+        const femaleVoice = voices.find(voice => 
+          voice.name.toLowerCase().includes('female') ||
+          voice.name.toLowerCase().includes('woman') ||
+          voice.name.toLowerCase().includes('samantha') ||
+          voice.name.toLowerCase().includes('karen') ||
+          voice.name.toLowerCase().includes('susan') ||
+          voice.name.toLowerCase().includes('victoria') ||
+          voice.name.toLowerCase().includes('zira') ||
+          voice.name.toLowerCase().includes('hazel') ||
+          (voice.gender && voice.gender === 'female')
+        );
+        
+        if (femaleVoice) {
+          utterance.voice = femaleVoice;
+        } else {
+          // Fallback: try to find any voice that sounds female by name patterns
+          const possibleFemaleVoice = voices.find(voice => 
+            voice.name.includes('Google UK English Female') ||
+            voice.name.includes('Microsoft Zira') ||
+            voice.name.includes('Microsoft Hazel') ||
+            voice.name.includes('Alex') && voice.lang.includes('en')
+          );
+          if (possibleFemaleVoice) {
+            utterance.voice = possibleFemaleVoice;
+          }
         }
         
-        throw new Error(`ElevenLabs API error: ${response.status} - ${response.statusText}`);
+        utterance.rate = 0.85;
+        utterance.pitch = 1.1; // Slightly higher pitch for more feminine sound
+        utterance.volume = 0.8;
+        
+        utterance.onend = () => {
+          setIsPlayingAudio(null);
+        };
+        
+        utterance.onerror = () => {
+          setIsPlayingAudio(null);
+          console.error('Speech synthesis error');
+        };
+        
+        speechSynthesis.speak(utterance);
+      } else {
+        throw new Error('Speech synthesis not supported in this browser');
       }
-
-      const audioBlob = await response.blob();
-      console.log('Audio blob size:', audioBlob.size, 'bytes');
-      console.log('Audio blob type:', audioBlob.type);
-      
-      if (audioBlob.size === 0) {
-        throw new Error('Received empty audio response');
-      }
-
-      const audioUrl = URL.createObjectURL(audioBlob);
-      console.log('Created audio URL:', audioUrl);
-      
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      // Set up event listeners
-      audio.onloadstart = () => console.log('Audio loading started');
-      audio.oncanplay = () => console.log('Audio can start playing');
-      audio.onplay = () => console.log('Audio playback started');
-
-      audio.onended = () => {
-        console.log('Audio playback ended');
-        setIsPlayingAudio(null);
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-      };
-
-      audio.onerror = (e) => {
-        console.error('Audio playback error:', e);
-        setIsPlayingAudio(null);
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-        throw new Error('Audio playback failed');
-      };
-
-      // Attempt to play
-      console.log('Starting audio playback...');
-      await audio.play();
-      console.log('Audio playback started successfully');
 
     } catch (error) {
-      console.error('Error in playAudio function:', error);
+      console.error('Error playing audio:', error);
       setIsPlayingAudio(null);
-      
-      // More specific error messages
-      let errorMessage = 'Audio playback failed. ';
-      if (error instanceof Error) {
-        if (error.message.includes('API error')) {
-          errorMessage += 'Using browser speech synthesis instead.';
-          
-          // Final fallback to browser speech synthesis
-          if ('speechSynthesis' in window) {
-            try {
-              const utterance = new SpeechSynthesisUtterance(text);
-              utterance.rate = 0.8;
-              utterance.pitch = 1;
-              utterance.volume = 0.8;
-              
-              utterance.onend = () => {
-                setIsPlayingAudio(null);
-              };
-              
-              speechSynthesis.speak(utterance);
-              setIsPlayingAudio(messageId);
-              return;
-            } catch (fallbackError) {
-              console.error('Browser speech synthesis also failed:', fallbackError);
-            }
-          }
-        } else if (error.message.includes('playback failed')) {
-          errorMessage += 'Your browser may not support audio playback.';
-        } else if (error.message.includes('empty audio')) {
-          errorMessage += 'No audio was generated for this text.';
-        } else {
-          errorMessage += error.message;
-        }
-      } else {
-        errorMessage += 'Please check your internet connection and try again.';
-      }
-      
-      console.warn(errorMessage);
-      // Don't show alert for audio errors, just log them
+      alert('Failed to play audio. Speech synthesis may not be supported in your browser.');
     }
   };
 
   const stopAudio = () => {
     console.log('Stopping audio playback');
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
     
-    // Stop browser speech synthesis if it's running
+    // Stop browser speech synthesis
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
     }
@@ -552,31 +461,31 @@ export const Homepage: React.FC = () => {
   const dashboardOptions = [
     {
       id: 'uploaded-documents' as DashboardSection,
-      icon: <Files className="size-4" />,
+      icon: <Files className="size-5" />,
       title: 'Documents',
       count: fileCount
     },
     {
       id: 'reports' as DashboardSection,
-      icon: <BarChart3 className="size-4" />,
+      icon: <BarChart3 className="size-5" />,
       title: 'Reports',
       count: 3
     },
     {
       id: 'chat-history' as DashboardSection,
-      icon: <History className="size-4" />,
+      icon: <History className="size-5" />,
       title: 'History',
       count: chatSessions.length
     },
     {
       id: 'knowledge-base' as DashboardSection,
-      icon: <Brain className="size-4" />,
+      icon: <Brain className="size-5" />,
       title: 'Knowledge',
       count: null
     },
     {
       id: 'settings' as DashboardSection,
-      icon: <Settings className="size-4" />,
+      icon: <Settings className="size-5" />,
       title: 'Settings',
       count: null
     }
@@ -602,9 +511,9 @@ export const Homepage: React.FC = () => {
                   onClick={closeSection}
                   variant="outline"
                   size="icon"
-                  className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+                  className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white h-12 w-12"
                 >
-                  <X className="size-4" />
+                  <X className="size-5" />
                 </Button>
               </div>
             </div>
@@ -633,9 +542,9 @@ export const Homepage: React.FC = () => {
                 onClick={closeSection}
                 variant="outline"
                 size="icon"
-                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white h-12 w-12"
               >
-                <X className="size-4" />
+                <X className="size-5" />
               </Button>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -647,7 +556,7 @@ export const Homepage: React.FC = () => {
                   <h3 className="text-base font-semibold text-white">Portfolio Analysis</h3>
                 </div>
                 <p className="text-gray-400 text-sm mb-3">Comprehensive analysis of your investment portfolio performance.</p>
-                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-600">
+                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-600 h-10">
                   View Report
                   <ChevronRight className="size-4 ml-1" />
                 </Button>
@@ -661,7 +570,7 @@ export const Homepage: React.FC = () => {
                   <h3 className="text-base font-semibold text-white">Budget Overview</h3>
                 </div>
                 <p className="text-gray-400 text-sm mb-3">Monthly budget breakdown with spending patterns.</p>
-                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-600">
+                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-600 h-10">
                   View Report
                   <ChevronRight className="size-4 ml-1" />
                 </Button>
@@ -675,7 +584,7 @@ export const Homepage: React.FC = () => {
                   <h3 className="text-base font-semibold text-white">Goal Progress</h3>
                 </div>
                 <p className="text-gray-400 text-sm mb-3">Track your financial goals and get recommendations.</p>
-                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-600">
+                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-600 h-10">
                   View Report
                   <ChevronRight className="size-4 ml-1" />
                 </Button>
@@ -704,55 +613,11 @@ export const Homepage: React.FC = () => {
                 onClick={closeSection}
                 variant="outline"
                 size="icon"
-                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white h-12 w-12"
               >
-                <X className="size-4" />
+                <X className="size-5" />
               </Button>
             </div>
-            
-            {/* Recorded Teachings */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-              <h3 className="text-base font-semibold text-white mb-3">AI Tutor Teachings</h3>
-              <p className="text-gray-400 text-sm mb-3">Automatically recorded from your AI tutor sessions</p>
-              
-              {(() => {
-                const knowledgeBase = JSON.parse(localStorage.getItem('financial-knowledge-base') || '[]');
-                
-                if (knowledgeBase.length === 0) {
-                  return (
-                    <div className="text-center py-8">
-                      <BookOpen className="size-12 text-gray-500 mx-auto mb-3" />
-                      <p className="text-gray-400 text-sm">No teachings recorded yet.</p>
-                      <p className="text-gray-500 text-xs">Ask the AI tutor questions to start building your knowledge base!</p>
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {knowledgeBase.slice(0, 10).map((entry: any) => (
-                      <div key={entry.id} className="bg-gray-700 border border-gray-600 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-white text-sm font-medium">{entry.topic}</h4>
-                          <span className="text-xs text-gray-400">
-                            {new Date(entry.timestamp).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-gray-300 text-xs leading-relaxed line-clamp-3">
-                          {entry.content.slice(0, 150)}...
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded-full">
-                            {entry.source}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-base font-semibold text-white mb-3">Financial Terms</h3>
@@ -797,9 +662,9 @@ export const Homepage: React.FC = () => {
                 onClick={closeSection}
                 variant="outline"
                 size="icon"
-                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white h-12 w-12"
               >
-                <X className="size-4" />
+                <X className="size-5" />
               </Button>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
@@ -823,9 +688,9 @@ export const Homepage: React.FC = () => {
                       onClick={handleSignOut}
                       variant="destructive"
                       disabled={isSigningOut}
-                      className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-md text-xs h-7"
+                      className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm h-10"
                     >
-                      <LogOut className="size-3" />
+                      <LogOut className="size-4" />
                       {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                     </Button>
                   </div>
@@ -992,21 +857,21 @@ export const Homepage: React.FC = () => {
       {/* Main Content - Chat Interface (Always Active) */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
         {/* Top Header with FinIQ.ai Branding and Dashboard */}
-        <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex-shrink-0">
+        <div className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             {/* Left: FinIQ.ai Branding and User Welcome */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-                  <TrendingUp className="size-5 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
+                  <TrendingUp className="size-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
                     FinIQ.ai
                   </h1>
                   {user && (
-                    <div className="flex items-center gap-2 text-gray-400 text-xs">
-                      <User className="size-2.5" />
+                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                      <User className="size-3" />
                       <span>Welcome back, {user.user_metadata?.full_name || user.email}</span>
                     </div>
                   )}
@@ -1015,12 +880,12 @@ export const Homepage: React.FC = () => {
             </div>
 
             {/* Right: Dashboard Navigation */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               {dashboardOptions.map((option) => (
                 <div key={option.id} className="relative group">
                   <button
                     onClick={() => setActiveSection(option.id)}
-                    className={`p-2 rounded-lg border transition-all duration-200 relative ${
+                    className={`p-3 rounded-lg border transition-all duration-200 relative ${
                       activeSection === option.id
                         ? 'bg-green-600/20 border-green-600/50 text-green-400'
                         : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
@@ -1028,7 +893,7 @@ export const Homepage: React.FC = () => {
                   >
                     {option.icon}
                     {option.count !== null && (
-                      <span className="absolute -top-1 -right-1 text-xs bg-red-500 text-white px-1 py-0.5 rounded-full min-w-[16px] h-[16px] flex items-center justify-center text-[10px]">
+                      <span className="absolute -top-1 -right-1 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[20px] h-[20px] flex items-center justify-center text-[10px]">
                         {option.count}
                       </span>
                     )}
@@ -1097,7 +962,7 @@ export const Homepage: React.FC = () => {
                                 onClick={() => isPlayingAudio === message.id ? stopAudio() : playAudio(message.content, message.id)}
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                                className="h-8 px-3 text-xs text-gray-400 hover:text-white"
                                 disabled={isPlayingAudio !== null && isPlayingAudio !== message.id}
                               >
                                 {isPlayingAudio === message.id ? (
@@ -1116,7 +981,7 @@ export const Homepage: React.FC = () => {
                                 onClick={() => copyMessage(message.content, message.id)}
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                                className="h-8 px-3 text-xs text-gray-400 hover:text-white"
                               >
                                 {copiedMessage === message.id ? (
                                   <Check className="size-3 mr-1" />
@@ -1128,14 +993,14 @@ export const Homepage: React.FC = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                                className="h-8 px-3 text-xs text-gray-400 hover:text-white"
                               >
                                 <ThumbsUp className="size-3" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                                className="h-8 px-3 text-xs text-gray-400 hover:text-white"
                               >
                                 <ThumbsDown className="size-3" />
                               </Button>
@@ -1273,7 +1138,10 @@ export const Homepage: React.FC = () => {
       </div>
 
       {/* Right Sidebar - Financial Tutor */}
-      <FinancialTutor />
+      <FinancialTutor 
+        width={tutorWidth}
+        onWidthChange={setTutorWidth}
+      />
     </div>
   );
 };
