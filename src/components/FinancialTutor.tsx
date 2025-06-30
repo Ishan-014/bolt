@@ -55,7 +55,6 @@ export const FinancialTutor: React.FC<FinancialTutorProps> = ({ className }) => 
   const [messages, setMessages] = useState<TutorMessage[]>([]);
   const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null);
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { generateResponse, isGenerating } = useFinancialChat();
@@ -138,166 +137,45 @@ Make it engaging and easy to understand, suitable for someone learning about fin
     try {
       setIsPlayingAudio(messageId);
 
-      // Stop any currently playing audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-
-      // Stop browser speech synthesis if it's running
+      // Stop any currently playing speech
       if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
       }
 
-      console.log('Attempting to play audio for message:', messageId);
-      console.log('Text to convert:', text.slice(0, 100) + '...');
+      console.log('Playing audio for message:', messageId);
 
-      // Limit text length and clean it
-      const cleanText = text.slice(0, 500).replace(/[^\w\s.,!?-]/g, '');
-      
-      // Use the specific voice ID you provided
-      const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XrExE9yKIg1WjnnlVkGX', {
-        method: 'POST',
-        headers: {
-          'Accept': 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': 'sk_83a44420464c52474ba9830b9613b5ac20d47031117995a9'
-        },
-        body: JSON.stringify({
-          text: cleanText,
-          model_id: 'eleven_monolingual_v1',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.0,
-            use_speaker_boost: true
-          }
-        })
-      });
-
-      console.log('ElevenLabs API response status:', response.status);
-      console.log('ElevenLabs API response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('ElevenLabs API error response:', errorText);
+      // Use browser's built-in speech synthesis
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.8;
+        utterance.pitch = 1;
+        utterance.volume = 0.8;
         
-        // Try browser's built-in speech synthesis as fallback
-        if ('speechSynthesis' in window) {
-          console.log('Falling back to browser speech synthesis');
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 0.8;
-          utterance.pitch = 1;
-          utterance.volume = 0.8;
-          
-          utterance.onend = () => {
-            setIsPlayingAudio(null);
-          };
-          
-          utterance.onerror = () => {
-            setIsPlayingAudio(null);
-            throw new Error('Browser speech synthesis failed');
-          };
-          
-          speechSynthesis.speak(utterance);
-          return;
-        }
+        utterance.onend = () => {
+          setIsPlayingAudio(null);
+        };
         
-        throw new Error(`ElevenLabs API error: ${response.status} - ${response.statusText}`);
+        utterance.onerror = () => {
+          setIsPlayingAudio(null);
+          console.error('Speech synthesis error');
+        };
+        
+        speechSynthesis.speak(utterance);
+      } else {
+        throw new Error('Speech synthesis not supported in this browser');
       }
-
-      const audioBlob = await response.blob();
-      console.log('Audio blob size:', audioBlob.size, 'bytes');
-      console.log('Audio blob type:', audioBlob.type);
-      
-      if (audioBlob.size === 0) {
-        throw new Error('Received empty audio response');
-      }
-
-      const audioUrl = URL.createObjectURL(audioBlob);
-      console.log('Created audio URL:', audioUrl);
-      
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      // Set up event listeners
-      audio.onloadstart = () => console.log('Audio loading started');
-      audio.oncanplay = () => console.log('Audio can start playing');
-      audio.onplay = () => console.log('Audio playback started');
-
-      audio.onended = () => {
-        console.log('Audio playback ended');
-        setIsPlayingAudio(null);
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-      };
-
-      audio.onerror = (e) => {
-        console.error('Audio playback error:', e);
-        setIsPlayingAudio(null);
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-        throw new Error('Audio playback failed');
-      };
-
-      // Attempt to play
-      console.log('Starting audio playback...');
-      await audio.play();
-      console.log('Audio playback started successfully');
 
     } catch (error) {
-      console.error('Error in playAudio function:', error);
+      console.error('Error playing audio:', error);
       setIsPlayingAudio(null);
-      
-      // More specific error messages
-      let errorMessage = 'Audio playback failed. ';
-      if (error instanceof Error) {
-        if (error.message.includes('API error')) {
-          errorMessage += 'Using browser speech synthesis instead.';
-          
-          // Final fallback to browser speech synthesis
-          if ('speechSynthesis' in window) {
-            try {
-              const utterance = new SpeechSynthesisUtterance(text);
-              utterance.rate = 0.8;
-              utterance.pitch = 1;
-              utterance.volume = 0.8;
-              
-              utterance.onend = () => {
-                setIsPlayingAudio(null);
-              };
-              
-              speechSynthesis.speak(utterance);
-              setIsPlayingAudio(messageId);
-              return;
-            } catch (fallbackError) {
-              console.error('Browser speech synthesis also failed:', fallbackError);
-            }
-          }
-        } else if (error.message.includes('playback failed')) {
-          errorMessage += 'Your browser may not support audio playback.';
-        } else if (error.message.includes('empty audio')) {
-          errorMessage += 'No audio was generated for this text.';
-        } else {
-          errorMessage += error.message;
-        }
-      } else {
-        errorMessage += 'Please check your internet connection and try again.';
-      }
-      
-      console.warn(errorMessage);
-      // Don't show alert for audio errors, just log them
+      alert('Failed to play audio. Speech synthesis may not be supported in your browser.');
     }
   };
 
   const stopAudio = () => {
     console.log('Stopping audio playback');
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
     
-    // Stop browser speech synthesis if it's running
+    // Stop browser speech synthesis
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
     }
