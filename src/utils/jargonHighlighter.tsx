@@ -129,6 +129,11 @@ export const highlightJargon = (text: string): React.ReactNode => {
   const parts = text.split(pattern);
   
   return parts.map((part, index) => {
+    // Check if part is a valid string before processing
+    if (!part || typeof part !== 'string') {
+      return part;
+    }
+    
     const lowerPart = part.toLowerCase();
     const jargonInfo = variationMap.get(lowerPart);
     
