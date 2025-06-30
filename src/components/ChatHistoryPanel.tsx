@@ -5,11 +5,9 @@ import {
   History, 
   MessageCircle, 
   Search, 
-  Trash2, 
   Plus, 
   X, 
   Calendar,
-  Clock,
   ChevronRight
 } from 'lucide-react';
 import { ChatSession } from '@/hooks/useChatHistory';

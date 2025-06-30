@@ -4,14 +4,13 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader2, Eye, EyeOff, AlertCircle, TrendingUp, Shield, Zap, Users } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface AuthWrapperProps {
   children: React.ReactNode
 }
 
 const AuthForm: React.FC = () => {
-  const { signIn, signUp, loading } = useAuth()
+  const { signIn, signUp } = useAuth()
   const [isSignUp, setIsSignUp] = React.useState(false)
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
