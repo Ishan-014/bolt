@@ -14,20 +14,14 @@ import { useFinancialChat } from '@/hooks/useFinancialChat';
 import { useChatHistory } from '@/hooks/useChatHistory';
 import { highlightJargon } from '@/utils/jargonHighlighter';
 import { 
-  Video as VideoIcon, 
   Files, 
   BookOpen, 
   TrendingUp, 
   Shield, 
   Target,
-  ArrowRight,
-  Upload,
   MessageCircle,
   BarChart3,
   User,
-  CheckCircle,
-  Zap,
-  Users,
   DollarSign,
   PieChart,
   Wallet,
@@ -37,18 +31,10 @@ import {
   Brain,
   ChevronRight,
   X,
-  Camera,
-  Mic,
-  AlertTriangle,
   MicIcon,
-  MicOffIcon,
-  VideoOffIcon,
-  PhoneIcon,
   Send,
   LogOut,
-  Search,
   Plus,
-  Paperclip,
   Bot,
   Copy,
   ThumbsUp,
@@ -58,7 +44,8 @@ import {
   Volume2,
   VolumeX,
   Loader2,
-  Check
+  Check,
+  Mic
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';

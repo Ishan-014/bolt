@@ -12,8 +12,6 @@ import {
   Calendar,
   HardDrive,
   Search,
-  Filter,
-  MoreVertical,
   RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
