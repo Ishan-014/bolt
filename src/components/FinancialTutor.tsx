@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, BookOpen, Volume2, VolumeX, Loader2, Send, Copy, Check, Mic, Bot, User, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
+import { BookOpen, Volume2, VolumeX, Loader2, Send, Copy, Check, Bot, User, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useFinancialChat } from '@/hooks/useFinancialChat';

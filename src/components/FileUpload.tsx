@@ -4,7 +4,6 @@ import { Upload, File, Image, FileSpreadsheet, FileText, X, Plus, AlertCircle, C
 import { useFileUpload, UploadProgress } from '@/hooks/useFileUpload'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 
 interface FileUploadProps {
   onUploadComplete?: (files: any[]) => void
@@ -20,13 +19,6 @@ const formatFileSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-const getFileIcon = (fileType: string) => {
-  if (fileType.startsWith('image/')) return <Image className="size-4" />
-  if (fileType.includes('spreadsheet') || fileType.includes('excel') || fileType.includes('csv')) return <FileSpreadsheet className="size-4" />
-  if (fileType.includes('pdf') || fileType.includes('document') || fileType.includes('text')) return <FileText className="size-4" />
-  return <File className="size-4" />
 }
 
 const UploadProgressItem: React.FC<{ upload: UploadProgress }> = ({ upload }) => {
