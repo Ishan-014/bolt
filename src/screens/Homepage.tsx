@@ -2,14 +2,17 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/FileUpload';
 import { FileManager } from '@/components/FileManager';
-import { JargonGuide } from '@/components/JargonGuide';
+import { FinancialTutor } from '@/components/FinancialTutor';
 import { VoiceTranscript } from '@/components/VoiceTranscript';
+import { ChatHistoryPanel } from '@/components/ChatHistoryPanel';
 import { useAtom } from 'jotai';
 import { screenAtom } from '@/store/screens';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserFiles } from '@/hooks/useUserFiles';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useFinancialChat } from '@/hooks/useFinancialChat';
+import { useChatHistory } from '@/hooks/useChatHistory';
+import { highlightJargon } from '@/utils/jargonHighlighter';
 import { 
   Video as VideoIcon, 
   Files, 
@@ -51,7 +54,11 @@ import {
   ThumbsUp,
   ThumbsDown,
   RefreshCw,
-  Database
+  Database,
+  Volume2,
+  VolumeX,
+  Loader2,
+  Check
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -74,22 +81,49 @@ export const Homepage: React.FC = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentInterimMessageId, setCurrentInterimMessageId] = useState<string | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null);
+  const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount, refetch: refetchFiles } = useUserFiles();
   const { generateResponse, isGenerating } = useFinancialChat();
+  const { 
+    chatSessions, 
+    currentSessionId, 
+    createNewSession, 
+    updateSession, 
+    loadSession, 
+    getCurrentSession,
+    setCurrentSessionId 
+  } = useChatHistory();
 
   // Initialize chat with welcome message on component mount
   useEffect(() => {
-    const welcomeMessage: ChatMessage = {
-      id: `welcome-${Date.now()}`,
-      role: 'assistant',
-      content: "Hello! I'm FinIQ.ai, your AI financial mentor. I have access to your uploaded documents and can explain financial terms from my knowledge base. What would you like to discuss today?",
-      timestamp: new Date(),
-      type: 'text'
-    };
-    setChatMessages([welcomeMessage]);
+    if (!currentSessionId) {
+      const sessionId = createNewSession();
+      const welcomeMessage: ChatMessage = {
+        id: `welcome-${Date.now()}`,
+        role: 'assistant',
+        content: "Hello! I'm FinIQ.ai, your AI financial mentor. I have access to your uploaded documents and can explain financial terms from my knowledge base. What would you like to discuss today?",
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setChatMessages([welcomeMessage]);
+      updateSession(sessionId, [welcomeMessage]);
+    } else {
+      const session = getCurrentSession();
+      if (session) {
+        setChatMessages(session.messages);
+      }
+    }
   }, []);
+
+  // Update session when messages change
+  useEffect(() => {
+    if (currentSessionId && chatMessages.length > 0) {
+      updateSession(currentSessionId, chatMessages);
+    }
+  }, [chatMessages, currentSessionId]);
 
   // Speech recognition
   const {
@@ -223,7 +257,8 @@ export const Homepage: React.FC = () => {
     }
   };
 
-  const clearChat = () => {
+  const startNewChat = () => {
+    const sessionId = createNewSession();
     const welcomeMessage: ChatMessage = {
       id: `welcome-${Date.now()}`,
       role: 'assistant',
@@ -235,6 +270,20 @@ export const Homepage: React.FC = () => {
     resetTranscript();
     if (currentInterimMessageId) {
       setCurrentInterimMessageId(null);
+    }
+    stopAudio();
+  };
+
+  const loadChatSession = (sessionId: string) => {
+    const session = loadSession(sessionId);
+    if (session) {
+      setChatMessages(session.messages);
+      setActiveSection(null); // Close any open sections
+      resetTranscript();
+      if (currentInterimMessageId) {
+        setCurrentInterimMessageId(null);
+      }
+      stopAudio();
     }
   };
 
@@ -251,6 +300,59 @@ export const Homepage: React.FC = () => {
       type: 'text'
     };
     setChatMessages(prev => [...prev, systemMessage]);
+  };
+
+  const playAudio = async (text: string, messageId: string) => {
+    try {
+      setIsPlayingAudio(messageId);
+
+      const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM', {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': 'sk_83a44420464c52474ba9830b9613b5ac20d47031117995a9'
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: 'eleven_monolingual_v1',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.5
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`ElevenLabs API error: ${response.statusText}`);
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
+        setIsPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setIsPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+        console.error('Audio playback error');
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      setIsPlayingAudio(null);
+      alert('Failed to play audio. Please try again.');
+    }
+  };
+
+  const stopAudio = () => {
+    setIsPlayingAudio(null);
   };
 
   const openSettings = () => {
@@ -316,8 +418,14 @@ export const Homepage: React.FC = () => {
     }
   }, [isListening, stopListening]);
 
-  const copyMessage = (content: string) => {
-    navigator.clipboard.writeText(content);
+  const copyMessage = async (content: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessage(messageId);
+      setTimeout(() => setCopiedMessage(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+    }
   };
 
   const fileCount = getFileCount();
@@ -339,7 +447,7 @@ export const Homepage: React.FC = () => {
       id: 'chat-history' as DashboardSection,
       icon: <History className="size-4" />,
       title: 'History',
-      count: 12
+      count: chatSessions.length
     },
     {
       id: 'knowledge-base' as DashboardSection,
@@ -459,43 +567,13 @@ export const Homepage: React.FC = () => {
 
       case 'chat-history':
         return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">Chat History</h2>
-              <Button
-                onClick={closeSection}
-                variant="outline"
-                size="icon"
-                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {[
-                { date: 'Today, 2:30 PM', topic: 'Investment Portfolio Review', duration: '15 min' },
-                { date: 'Yesterday, 4:15 PM', topic: 'Retirement Planning Discussion', duration: '22 min' },
-                { date: 'Jan 15, 10:30 AM', topic: 'Tax Optimization Strategies', duration: '18 min' },
-                { date: 'Jan 12, 3:45 PM', topic: 'Emergency Fund Planning', duration: '12 min' },
-                { date: 'Jan 10, 11:20 AM', topic: 'Budget Analysis and Recommendations', duration: '25 min' }
-              ].map((chat, index) => (
-                <div key={index} className="bg-gray-800 border border-gray-700 rounded-lg p-3 hover:bg-gray-700 transition-all duration-200 cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-600/20 rounded-lg">
-                        <MessageCircle className="size-4 text-green-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-medium text-sm">{chat.topic}</h3>
-                        <p className="text-gray-400 text-xs">{chat.date} • {chat.duration}</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="size-4 text-gray-400" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <ChatHistoryPanel
+            chatSessions={chatSessions}
+            currentSessionId={currentSessionId}
+            onLoadSession={loadChatSession}
+            onNewSession={startNewChat}
+            onClose={closeSection}
+          />
         );
 
       case 'knowledge-base':
@@ -514,12 +592,12 @@ export const Homepage: React.FC = () => {
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                <h3 className="text-base font-semibold text-white mb-3">Jargon Guide</h3>
+                <h3 className="text-base font-semibold text-white mb-3">Financial Terms</h3>
                 <p className="text-gray-400 text-sm mb-3">Financial terms your AI mentor can explain and reference.</p>
                 <div className="space-y-2">
                   {['Asset Allocation', 'Compound Interest', 'Diversification', 'ROI'].map((term) => (
                     <div key={term} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-b-0">
-                      <span className="text-white text-sm">{term}</span>
+                      <span className="text-white text-sm font-bold text-green-400">{term}</span>
                       <ChevronRight className="size-3 text-gray-400" />
                     </div>
                   ))}
@@ -844,19 +922,45 @@ export const Homepage: React.FC = () => {
                             </span>
                           </div>
                           <div className={`text-sm leading-relaxed ${message.isInterim ? 'italic' : ''}`}>
-                            {message.content}
+                            {message.role === 'assistant' && !message.isInterim 
+                              ? highlightJargon(message.content)
+                              : message.content
+                            }
                             {message.isInterim && <span className="animate-pulse text-green-200 ml-1">|</span>}
                           </div>
                           {message.role === 'assistant' && !message.isInterim && (
                             <div className="flex items-center gap-2 mt-2">
                               <Button
-                                onClick={() => copyMessage(message.content)}
+                                onClick={() => isPlayingAudio === message.id ? stopAudio() : playAudio(message.content, message.id)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                                disabled={isPlayingAudio !== null && isPlayingAudio !== message.id}
+                              >
+                                {isPlayingAudio === message.id ? (
+                                  <>
+                                    <VolumeX className="size-3 mr-1" />
+                                    Stop
+                                  </>
+                                ) : (
+                                  <>
+                                    <Volume2 className="size-3 mr-1" />
+                                    Play
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                onClick={() => copyMessage(message.content, message.id)}
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 px-2 text-xs text-gray-400 hover:text-white"
                               >
-                                <Copy className="size-3 mr-1" />
-                                Copy
+                                {copiedMessage === message.id ? (
+                                  <Check className="size-3 mr-1" />
+                                ) : (
+                                  <Copy className="size-3 mr-1" />
+                                )}
+                                {copiedMessage === message.id ? 'Copied' : 'Copy'}
                               </Button>
                               <Button
                                 variant="ghost"
@@ -894,11 +998,7 @@ export const Homepage: React.FC = () => {
                             <span className="font-medium text-sm">FinIQ.ai</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="flex gap-1">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
+                            <Loader2 className="size-4 animate-spin" />
                             <span className="text-sm text-gray-400">Analyzing your data...</span>
                           </div>
                         </div>
@@ -978,13 +1078,13 @@ export const Homepage: React.FC = () => {
                   Refresh
                 </Button>
 
-                {/* Clear Chat Button */}
+                {/* New Chat Button */}
                 <Button
-                  onClick={clearChat}
+                  onClick={startNewChat}
                   className="h-12 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
                 >
-                  <X className="size-4 mr-2" />
-                  Clear
+                  <Plus className="size-4 mr-2" />
+                  New Chat
                 </Button>
               </div>
 
@@ -992,8 +1092,9 @@ export const Homepage: React.FC = () => {
               <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-400 justify-center">
                 <span>💬 Ask about your uploaded documents</span>
                 <span>🎤 Hold voice button to speak</span>
-                <span>📚 Reference financial terms from jargon guide</span>
-                <span>🔄 Refresh button updates AI context</span>
+                <span>📚 Financial terms appear with tooltips</span>
+                <span>🔊 Click play to hear responses</span>
+                <span>🔄 Refresh updates AI context</span>
                 {!speechSupported && <span className="text-red-400">⚠️ Speech recognition not supported in this browser</span>}
               </div>
             </div>
@@ -1008,8 +1109,8 @@ export const Homepage: React.FC = () => {
         )}
       </div>
 
-      {/* Right Sidebar - Jargon Guide */}
-      <JargonGuide />
+      {/* Right Sidebar - Financial Tutor */}
+      <FinancialTutor />
     </div>
   );
 };
