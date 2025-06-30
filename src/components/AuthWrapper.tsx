@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, User, Mail, Lock, Eye, EyeOff, AlertCircle, TrendingUp, Shield, Zap, Users } from 'lucide-react'
+import { Loader2, Eye, EyeOff, AlertCircle, TrendingUp, Shield, Zap, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AuthWrapperProps {
