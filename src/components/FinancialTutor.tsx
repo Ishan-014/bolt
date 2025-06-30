@@ -144,9 +144,18 @@ Make it engaging and easy to understand, suitable for someone learning about fin
         audioRef.current = null;
       }
 
-      console.log('Attempting to play audio for message:', messageId);
+      // Stop browser speech synthesis if it's running
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+      }
 
-      // Use a more reliable TTS service or fallback
+      console.log('Attempting to play audio for message:', messageId);
+      console.log('Text to convert:', text.slice(0, 100) + '...');
+
+      // Limit text length and clean it
+      const cleanText = text.slice(0, 500).replace(/[^\w\s.,!?-]/g, '');
+      
+      // Use the specific voice ID you provided
       const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XrExE9yKIg1WjnnlVkGX', {
         method: 'POST',
         headers: {
@@ -155,16 +164,19 @@ Make it engaging and easy to understand, suitable for someone learning about fin
           'xi-api-key': 'sk_83a44420464c52474ba9830b9613b5ac20d47031117995a9'
         },
         body: JSON.stringify({
-          text: text.slice(0, 500), // Limit text length to avoid issues
+          text: cleanText,
           model_id: 'eleven_monolingual_v1',
           voice_settings: {
             stability: 0.5,
-            similarity_boost: 0.5
+            similarity_boost: 0.75,
+            style: 0.0,
+            use_speaker_boost: true
           }
         })
       });
 
       console.log('ElevenLabs API response status:', response.status);
+      console.log('ElevenLabs API response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -195,7 +207,8 @@ Make it engaging and easy to understand, suitable for someone learning about fin
       }
 
       const audioBlob = await response.blob();
-      console.log('Audio blob size:', audioBlob.size);
+      console.log('Audio blob size:', audioBlob.size, 'bytes');
+      console.log('Audio blob type:', audioBlob.type);
       
       if (audioBlob.size === 0) {
         throw new Error('Received empty audio response');

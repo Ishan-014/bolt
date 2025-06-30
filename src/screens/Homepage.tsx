@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/FileUpload';
 import { FileManager } from '@/components/FileManager';
@@ -313,9 +313,18 @@ export const Homepage: React.FC = () => {
         audioRef.current = null;
       }
 
-      console.log('Attempting to play audio for message:', messageId);
+      // Stop browser speech synthesis if it's running
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+      }
 
-      // Use a more reliable TTS service or fallback
+      console.log('Attempting to play audio for message:', messageId);
+      console.log('Text to convert:', text.slice(0, 100) + '...');
+
+      // Limit text length and clean it
+      const cleanText = text.slice(0, 500).replace(/[^\w\s.,!?-]/g, '');
+      
+      // Use the specific voice ID you provided
       const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XrExE9yKIg1WjnnlVkGX', {
         method: 'POST',
         headers: {
@@ -324,16 +333,19 @@ export const Homepage: React.FC = () => {
           'xi-api-key': 'sk_83a44420464c52474ba9830b9613b5ac20d47031117995a9'
         },
         body: JSON.stringify({
-          text: text.slice(0, 500), // Limit text length to avoid issues
+          text: cleanText,
           model_id: 'eleven_monolingual_v1',
           voice_settings: {
             stability: 0.5,
-            similarity_boost: 0.5
+            similarity_boost: 0.75,
+            style: 0.0,
+            use_speaker_boost: true
           }
         })
       });
 
       console.log('ElevenLabs API response status:', response.status);
+      console.log('ElevenLabs API response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -364,7 +376,8 @@ export const Homepage: React.FC = () => {
       }
 
       const audioBlob = await response.blob();
-      console.log('Audio blob size:', audioBlob.size);
+      console.log('Audio blob size:', audioBlob.size, 'bytes');
+      console.log('Audio blob type:', audioBlob.type);
       
       if (audioBlob.size === 0) {
         throw new Error('Received empty audio response');
@@ -697,35 +710,50 @@ export const Homepage: React.FC = () => {
               </Button>
             </div>
             
-            {/* Knowledge Base Content */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                <h3 className="text-base font-semibold text-white mb-3">AI Tutor Teachings</h3>
-                <p className="text-gray-400 text-sm mb-3">Topics taught by your AI financial tutor.</p>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {(() => {
-                    try {
-                      const knowledgeBase = JSON.parse(localStorage.getItem('financial-knowledge-base') || '[]');
-                      return knowledgeBase.length > 0 ? (
-                        knowledgeBase.slice(0, 10).map((entry: any) => (
-                          <div key={entry.id} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-b-0">
-                            <div>
-                              <span className="text-white text-sm font-medium">{entry.topic}</span>
-                              <p className="text-gray-400 text-xs">{new Date(entry.timestamp).toLocaleDateString()}</p>
-                            </div>
-                            <ChevronRight className="size-3 text-gray-400" />
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-gray-500 text-sm italic">No teachings recorded yet. Ask the AI tutor to learn something!</p>
-                      );
-                    } catch {
-                      return <p className="text-gray-500 text-sm italic">No teachings recorded yet.</p>;
-                    }
-                  })()}
-                </div>
-              </div>
+            {/* Recorded Teachings */}
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <h3 className="text-base font-semibold text-white mb-3">AI Tutor Teachings</h3>
+              <p className="text-gray-400 text-sm mb-3">Automatically recorded from your AI tutor sessions</p>
+              
+              {(() => {
+                const knowledgeBase = JSON.parse(localStorage.getItem('financial-knowledge-base') || '[]');
+                
+                if (knowledgeBase.length === 0) {
+                  return (
+                    <div className="text-center py-8">
+                      <BookOpen className="size-12 text-gray-500 mx-auto mb-3" />
+                      <p className="text-gray-400 text-sm">No teachings recorded yet.</p>
+                      <p className="text-gray-500 text-xs">Ask the AI tutor questions to start building your knowledge base!</p>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {knowledgeBase.slice(0, 10).map((entry: any) => (
+                      <div key={entry.id} className="bg-gray-700 border border-gray-600 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-white text-sm font-medium">{entry.topic}</h4>
+                          <span className="text-xs text-gray-400">
+                            {new Date(entry.timestamp).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-300 text-xs leading-relaxed line-clamp-3">
+                          {entry.content.slice(0, 150)}...
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded-full">
+                            {entry.source}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
 
+            <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-base font-semibold text-white mb-3">Financial Terms</h3>
                 <p className="text-gray-400 text-sm mb-3">Financial terms your AI mentor can explain and reference.</p>
@@ -734,6 +762,24 @@ export const Homepage: React.FC = () => {
                     <div key={term} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-b-0">
                       <span className="text-white text-sm font-bold text-green-400">{term}</span>
                       <ChevronRight className="size-3 text-gray-400" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                <h3 className="text-base font-semibold text-white mb-3">Educational Articles</h3>
+                <p className="text-gray-400 text-sm mb-3">Learn about personal finance and investing strategies.</p>
+                <div className="space-y-2">
+                  {[
+                    'Getting Started with Investing',
+                    'Building an Emergency Fund',
+                    'Understanding Credit Scores',
+                    'Retirement Planning Basics'
+                  ].map((article) => (
+                    <div key={article} className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-lg transition-colors cursor-pointer">
+                      <FileText className="size-3 text-green-400" />
+                      <span className="text-white text-xs">{article}</span>
                     </div>
                   ))}
                 </div>
