@@ -18,6 +18,38 @@ interface FinancialTutorProps {
   className?: string;
 }
 
+// Knowledge base storage
+const saveToKnowledgeBase = (topic: string, content: string) => {
+  try {
+    const existingKnowledge = JSON.parse(localStorage.getItem('financial-knowledge-base') || '[]');
+    const newEntry = {
+      id: `knowledge-${Date.now()}`,
+      topic,
+      content,
+      timestamp: new Date().toISOString(),
+      source: 'AI Tutor'
+    };
+    
+    // Check if similar topic already exists
+    const existingIndex = existingKnowledge.findIndex((entry: any) => 
+      entry.topic.toLowerCase() === topic.toLowerCase()
+    );
+    
+    if (existingIndex >= 0) {
+      // Update existing entry
+      existingKnowledge[existingIndex] = { ...existingKnowledge[existingIndex], ...newEntry };
+    } else {
+      // Add new entry
+      existingKnowledge.push(newEntry);
+    }
+    
+    localStorage.setItem('financial-knowledge-base', JSON.stringify(existingKnowledge));
+    console.log('Saved to knowledge base:', topic);
+  } catch (error) {
+    console.error('Error saving to knowledge base:', error);
+  }
+};
+
 export const FinancialTutor: React.FC<FinancialTutorProps> = ({ className }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [messages, setMessages] = useState<TutorMessage[]>([]);
@@ -77,6 +109,10 @@ Make it engaging and easy to understand, suitable for someone learning about fin
         timestamp: new Date()
       };
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Save the teaching content to knowledge base
+      saveToKnowledgeBase(searchQuery.trim(), response);
+      
     } catch (error) {
       console.error('Error generating tutor response:', error);
       const errorMessage: TutorMessage = {
@@ -110,6 +146,7 @@ Make it engaging and easy to understand, suitable for someone learning about fin
 
       console.log('Attempting to play audio for message:', messageId);
 
+      // Use a more reliable TTS service or fallback
       const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XrExE9yKIg1WjnnlVkGX', {
         method: 'POST',
         headers: {
@@ -118,7 +155,7 @@ Make it engaging and easy to understand, suitable for someone learning about fin
           'xi-api-key': 'sk_83a44420464c52474ba9830b9613b5ac20d47031117995a9'
         },
         body: JSON.stringify({
-          text: text,
+          text: text.slice(0, 500), // Limit text length to avoid issues
           model_id: 'eleven_monolingual_v1',
           voice_settings: {
             stability: 0.5,
@@ -132,6 +169,28 @@ Make it engaging and easy to understand, suitable for someone learning about fin
       if (!response.ok) {
         const errorText = await response.text();
         console.error('ElevenLabs API error response:', errorText);
+        
+        // Try browser's built-in speech synthesis as fallback
+        if ('speechSynthesis' in window) {
+          console.log('Falling back to browser speech synthesis');
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 0.8;
+          utterance.pitch = 1;
+          utterance.volume = 0.8;
+          
+          utterance.onend = () => {
+            setIsPlayingAudio(null);
+          };
+          
+          utterance.onerror = () => {
+            setIsPlayingAudio(null);
+            throw new Error('Browser speech synthesis failed');
+          };
+          
+          speechSynthesis.speak(utterance);
+          return;
+        }
+        
         throw new Error(`ElevenLabs API error: ${response.status} - ${response.statusText}`);
       }
 
@@ -178,10 +237,30 @@ Make it engaging and easy to understand, suitable for someone learning about fin
       setIsPlayingAudio(null);
       
       // More specific error messages
-      let errorMessage = 'Failed to play audio. ';
+      let errorMessage = 'Audio playback failed. ';
       if (error instanceof Error) {
         if (error.message.includes('API error')) {
-          errorMessage += 'There was an issue with the text-to-speech service.';
+          errorMessage += 'Using browser speech synthesis instead.';
+          
+          // Final fallback to browser speech synthesis
+          if ('speechSynthesis' in window) {
+            try {
+              const utterance = new SpeechSynthesisUtterance(text);
+              utterance.rate = 0.8;
+              utterance.pitch = 1;
+              utterance.volume = 0.8;
+              
+              utterance.onend = () => {
+                setIsPlayingAudio(null);
+              };
+              
+              speechSynthesis.speak(utterance);
+              setIsPlayingAudio(messageId);
+              return;
+            } catch (fallbackError) {
+              console.error('Browser speech synthesis also failed:', fallbackError);
+            }
+          }
         } else if (error.message.includes('playback failed')) {
           errorMessage += 'Your browser may not support audio playback.';
         } else if (error.message.includes('empty audio')) {
@@ -193,7 +272,8 @@ Make it engaging and easy to understand, suitable for someone learning about fin
         errorMessage += 'Please check your internet connection and try again.';
       }
       
-      alert(errorMessage);
+      console.warn(errorMessage);
+      // Don't show alert for audio errors, just log them
     }
   };
 
@@ -203,6 +283,12 @@ Make it engaging and easy to understand, suitable for someone learning about fin
       audioRef.current.pause();
       audioRef.current = null;
     }
+    
+    // Stop browser speech synthesis if it's running
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+    
     setIsPlayingAudio(null);
   };
 
@@ -244,7 +330,7 @@ Make it engaging and easy to understand, suitable for someone learning about fin
             <span className="text-green-300 text-xs font-medium">AI Tutor Active</span>
           </div>
           <p className="text-green-200/80 text-xs">
-            Powered by Google Gemini with ElevenLabs voice synthesis
+            Powered by Google Gemini with speech synthesis. All teachings are saved to your knowledge base.
           </p>
         </div>
       </div>
@@ -393,7 +479,7 @@ Make it engaging and easy to understand, suitable for someone learning about fin
         <div className="mt-3 text-center">
           <div className="inline-flex items-center gap-2 text-xs text-gray-500">
             <Volume2 className="size-3" />
-            <span>Powered by ElevenLabs TTS</span>
+            <span>Speech synthesis with knowledge base recording</span>
           </div>
         </div>
       </div>
