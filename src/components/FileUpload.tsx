@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, File, Image, FileSpreadsheet, FileText, X, Plus, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { Upload, X, Plus, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { useFileUpload, UploadProgress } from '@/hooks/useFileUpload'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
