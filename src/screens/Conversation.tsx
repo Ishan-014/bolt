@@ -9,7 +9,7 @@ import {
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import Video from "@/components/Video";
 import { conversationAtom } from "@/store/conversation";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,8 +35,6 @@ import {
 } from "@/utils";
 import { Timer } from "@/components/Timer";
 import { TIME_LIMIT } from "@/config";
-import { niceScoreAtom } from "@/store/game";
-import { naughtyScoreAtom } from "@/store/game";
 import { apiTokenAtom } from "@/store/tokens";
 import { quantum } from 'ldrs';
 import { cn } from "@/lib/utils";
@@ -62,12 +60,10 @@ const outroPhrases = [
 export const Conversation: React.FC = () => {
   const [conversation, setConversation] = useAtom(conversationAtom);
   const [, setScreenState] = useAtom(screenAtom);
-  const [naughtyScore] = useAtom(naughtyScoreAtom);
-  const [niceScore] = useAtom(niceScoreAtom);
   const [token, setToken] = useAtom(apiTokenAtom);
 
   const daily = useDaily();
-  const { currentMic, setMicrophone, setSpeaker } = useDevices();
+  const { setMicrophone, setSpeaker } = useDevices();
   const localSessionId = useLocalSessionId();
   const localVideo = useVideoTrack(localSessionId);
   const localAudio = useAudioTrack(localSessionId);
