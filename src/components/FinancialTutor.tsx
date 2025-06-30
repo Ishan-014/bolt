@@ -223,9 +223,9 @@ Make it engaging and easy to understand, suitable for someone learning about fin
           setIsPlayingAudio(null);
         };
         
-        utterance.onerror = () => {
+        utterance.onerror = (event) => {
           setIsPlayingAudio(null);
-          console.error('Speech synthesis error');
+          console.error('Speech synthesis error:', event.error);
         };
         
         speechSynthesis.speak(utterance);

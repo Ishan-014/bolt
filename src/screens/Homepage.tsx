@@ -355,9 +355,9 @@ export const Homepage: React.FC = () => {
           setIsPlayingAudio(null);
         };
         
-        utterance.onerror = () => {
+        utterance.onerror = (event) => {
           setIsPlayingAudio(null);
-          console.error('Speech synthesis error');
+          console.error('Speech synthesis error:', event.error);
         };
         
         speechSynthesis.speak(utterance);
