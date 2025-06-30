@@ -185,22 +185,6 @@ const AuthForm: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Enhanced Stats */}
-          <div className="grid grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-400 mb-1">10K+</div>
-              <div className="text-gray-400 text-sm">Active Users</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-400 mb-1">95%</div>
-              <div className="text-gray-400 text-sm">Satisfaction</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-400 mb-1">$2M+</div>
-              <div className="text-gray-400 text-sm">Managed</div>
-            </div>
-          </div>
         </div>
       </div>
 
