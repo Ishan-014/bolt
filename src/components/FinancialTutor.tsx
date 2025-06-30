@@ -196,8 +196,7 @@ Make it engaging and easy to understand, suitable for someone learning about fin
           voice.name.toLowerCase().includes('susan') ||
           voice.name.toLowerCase().includes('victoria') ||
           voice.name.toLowerCase().includes('zira') ||
-          voice.name.toLowerCase().includes('hazel') ||
-          (voice.gender && voice.gender === 'female')
+          voice.name.toLowerCase().includes('hazel')
         );
         
         if (femaleVoice) {

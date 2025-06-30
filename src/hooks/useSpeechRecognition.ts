@@ -171,11 +171,3 @@ export function useSpeechRecognition({
     resetTranscript
   };
 }
-
-// Extend the Window interface to include speech recognition
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
