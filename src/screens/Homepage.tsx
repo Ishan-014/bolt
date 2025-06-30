@@ -83,6 +83,7 @@ export const Homepage: React.FC = () => {
   const [currentInterimMessageId, setCurrentInterimMessageId] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null);
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount, refetch: refetchFiles } = useUserFiles();
@@ -306,7 +307,15 @@ export const Homepage: React.FC = () => {
     try {
       setIsPlayingAudio(messageId);
 
-      const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM', {
+      // Stop any currently playing audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+
+      console.log('Attempting to play audio for message:', messageId);
+
+      const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XrExE9yKIg1WjnnlVkGX', {
         method: 'POST',
         headers: {
           'Accept': 'audio/mpeg',
@@ -323,35 +332,82 @@ export const Homepage: React.FC = () => {
         })
       });
 
+      console.log('ElevenLabs API response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`ElevenLabs API error: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('ElevenLabs API error response:', errorText);
+        throw new Error(`ElevenLabs API error: ${response.status} - ${response.statusText}`);
       }
 
       const audioBlob = await response.blob();
+      console.log('Audio blob size:', audioBlob.size);
+      
+      if (audioBlob.size === 0) {
+        throw new Error('Received empty audio response');
+      }
+
       const audioUrl = URL.createObjectURL(audioBlob);
+      console.log('Created audio URL:', audioUrl);
       
       const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      // Set up event listeners
+      audio.onloadstart = () => console.log('Audio loading started');
+      audio.oncanplay = () => console.log('Audio can start playing');
+      audio.onplay = () => console.log('Audio playback started');
 
       audio.onended = () => {
+        console.log('Audio playback ended');
         setIsPlayingAudio(null);
         URL.revokeObjectURL(audioUrl);
+        audioRef.current = null;
       };
 
-      audio.onerror = () => {
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
         setIsPlayingAudio(null);
         URL.revokeObjectURL(audioUrl);
-        console.error('Audio playback error');
+        audioRef.current = null;
+        throw new Error('Audio playback failed');
       };
 
+      // Attempt to play
+      console.log('Starting audio playback...');
       await audio.play();
+      console.log('Audio playback started successfully');
+
     } catch (error) {
-      console.error('Error playing audio:', error);
+      console.error('Error in playAudio function:', error);
       setIsPlayingAudio(null);
-      alert('Failed to play audio. Please try again.');
+      
+      // More specific error messages
+      let errorMessage = 'Failed to play audio. ';
+      if (error instanceof Error) {
+        if (error.message.includes('API error')) {
+          errorMessage += 'There was an issue with the text-to-speech service.';
+        } else if (error.message.includes('playback failed')) {
+          errorMessage += 'Your browser may not support audio playback.';
+        } else if (error.message.includes('empty audio')) {
+          errorMessage += 'No audio was generated for this text.';
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += 'Please check your internet connection and try again.';
+      }
+      
+      alert(errorMessage);
     }
   };
 
   const stopAudio = () => {
+    console.log('Stopping audio playback');
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     setIsPlayingAudio(null);
   };
 
