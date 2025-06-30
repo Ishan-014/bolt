@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/FileUpload';
 import { FileManager } from '@/components/FileManager';
@@ -15,11 +15,9 @@ import { useChatHistory } from '@/hooks/useChatHistory';
 import { highlightJargon } from '@/utils/jargonHighlighter';
 import { 
   Files, 
-  BookOpen, 
   TrendingUp, 
   Shield, 
   Target,
-  MessageCircle,
   BarChart3,
   User,
   DollarSign,
