@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, BookOpen, TrendingUp, TrendingDown, DollarSign, Shield, Building, PieChart } from 'lucide-react';
+import { Search, BookOpen, TrendingUp, TrendingDown, DollarSign, Shield, Building, PieChart, Copy, Check } from 'lucide-react';
 
 interface JargonTerm {
   term: string;
@@ -111,6 +111,7 @@ const categoryColors = {
 export const JargonGuide: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [copiedTerm, setCopiedTerm] = useState<string | null>(null);
 
   const filteredTerms = jargonTerms.filter(term => {
     const matchesSearch = term.term.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -119,6 +120,17 @@ export const JargonGuide: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
+  const copyTermDefinition = async (term: JargonTerm) => {
+    const textToCopy = `${term.term}: ${term.definition}`;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopiedTerm(term.term);
+      setTimeout(() => setCopiedTerm(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+    }
+  };
+
   return (
     <div className="w-80 bg-gray-800 border-l border-gray-700 p-6 overflow-hidden">
       <div className="mb-6">
@@ -126,7 +138,7 @@ export const JargonGuide: React.FC = () => {
           <BookOpen className="size-5 text-green-400" />
           <h2 className="text-white text-xl font-bold">Jargon Guide</h2>
         </div>
-        <p className="text-gray-400 text-sm">Understand financial terms used by your mentor</p>
+        <p className="text-gray-400 text-sm">Financial terms available to your AI mentor</p>
       </div>
 
       {/* Search */}
@@ -187,18 +199,42 @@ export const JargonGuide: React.FC = () => {
         </div>
       </div>
 
+      {/* AI Integration Notice */}
+      <div className="mb-4 p-3 bg-green-900/30 border border-green-700/50 rounded-lg">
+        <div className="flex items-center gap-2 mb-1">
+          <BookOpen className="size-3 text-green-400" />
+          <span className="text-green-300 text-xs font-medium">AI Integration Active</span>
+        </div>
+        <p className="text-green-200/80 text-xs">
+          Your AI mentor has access to all these definitions and will reference them in conversations.
+        </p>
+      </div>
+
       {/* Terms List with Hidden Scrollbar */}
-      <div className="jargon-scroll-container overflow-y-auto" style={{ height: 'calc(100vh - 300px)' }}>
+      <div className="jargon-scroll-container overflow-y-auto" style={{ height: 'calc(100vh - 400px)' }}>
         <div className="space-y-3">
           {filteredTerms.map((term, index) => (
-            <div key={index} className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200">
+            <div key={index} className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:bg-gray-600 transition-all duration-200 group">
               <div className="flex items-start gap-3 mb-2">
                 <div className={`p-1 rounded border ${categoryColors[term.category]}`}>
                   {term.icon}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-white font-semibold text-sm mb-1">{term.term}</h3>
-                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[term.category]}`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-white font-semibold text-sm mb-1">{term.term}</h3>
+                    <button
+                      onClick={() => copyTermDefinition(term)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-500 rounded"
+                      title="Copy definition"
+                    >
+                      {copiedTerm === term.term ? (
+                        <Check className="size-3 text-green-400" />
+                      ) : (
+                        <Copy className="size-3 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[term.category]} mb-2`}>
                     {term.category}
                   </span>
                 </div>

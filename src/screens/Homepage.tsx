@@ -49,7 +49,9 @@ import {
   Bot,
   Copy,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -74,7 +76,7 @@ export const Homepage: React.FC = () => {
   const [currentInterimMessageId, setCurrentInterimMessageId] = useState<string | null>(null);
 
   const { user, signOut } = useAuth();
-  const { files, getFileCount } = useUserFiles();
+  const { files, getFileCount, refetch: refetchFiles } = useUserFiles();
   const { generateResponse, isGenerating } = useFinancialChat();
 
   // Initialize chat with welcome message on component mount
@@ -82,7 +84,7 @@ export const Homepage: React.FC = () => {
     const welcomeMessage: ChatMessage = {
       id: `welcome-${Date.now()}`,
       role: 'assistant',
-      content: "Hello! I'm FinIQ.ai, your AI financial mentor. I'm here to help you with budgeting, investing, saving, retirement planning, and all your financial goals. What would you like to discuss today?",
+      content: "Hello! I'm FinIQ.ai, your AI financial mentor. I have access to your uploaded documents and can explain financial terms from my knowledge base. What would you like to discuss today?",
       timestamp: new Date(),
       type: 'text'
     };
@@ -172,16 +174,28 @@ export const Homepage: React.FC = () => {
 
   const handleFileUploadComplete = (uploadedFiles: any[]) => {
     console.log('Files uploaded successfully:', uploadedFiles);
+    // Refresh files list to update the AI context
+    refetchFiles();
     setActiveSection('uploaded-documents');
+    
+    // Add a system message about the uploaded files
+    const systemMessage: ChatMessage = {
+      id: `system-${Date.now()}`,
+      role: 'assistant',
+      content: `I've noted that you've uploaded ${uploadedFiles.length} new document(s). I now have access to information about these files and can reference them in our conversation. Feel free to ask me about analyzing or reviewing your uploaded documents!`,
+      timestamp: new Date(),
+      type: 'text'
+    };
+    setChatMessages(prev => [...prev, systemMessage]);
   };
 
   const handleSendMessage = async (messageText: string) => {
     if (!messageText.trim()) return;
 
     try {
-      console.log('Sending message to Google Gemini:', messageText);
+      console.log('Sending message to Google Gemini with context:', messageText);
       
-      // Generate AI response using Google Gemini
+      // Generate AI response using Google Gemini with full context
       const aiResponse = await generateResponse(messageText.trim());
       
       // Add AI response to chat
@@ -213,7 +227,7 @@ export const Homepage: React.FC = () => {
     const welcomeMessage: ChatMessage = {
       id: `welcome-${Date.now()}`,
       role: 'assistant',
-      content: "Hello! I'm FinIQ.ai, your AI financial mentor. I'm here to help you with budgeting, investing, saving, retirement planning, and all your financial goals. What would you like to discuss today?",
+      content: "Hello! I'm FinIQ.ai, your AI financial mentor. I have access to your uploaded documents and can explain financial terms from my knowledge base. What would you like to discuss today?",
       timestamp: new Date(),
       type: 'text'
     };
@@ -222,6 +236,21 @@ export const Homepage: React.FC = () => {
     if (currentInterimMessageId) {
       setCurrentInterimMessageId(null);
     }
+  };
+
+  const refreshContext = async () => {
+    // Refresh files to update AI context
+    await refetchFiles();
+    
+    // Add a system message about context refresh
+    const systemMessage: ChatMessage = {
+      id: `refresh-${Date.now()}`,
+      role: 'assistant',
+      content: "I've refreshed my access to your latest documents and financial information. My responses will now reflect any recent changes or uploads.",
+      timestamp: new Date(),
+      type: 'text'
+    };
+    setChatMessages(prev => [...prev, systemMessage]);
   };
 
   const openSettings = () => {
@@ -332,7 +361,10 @@ export const Homepage: React.FC = () => {
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">Uploaded Documents</h2>
+              <div>
+                <h2 className="text-xl font-bold text-white">Uploaded Documents</h2>
+                <p className="text-gray-400 text-sm">Your AI mentor has access to these documents</p>
+              </div>
               <div className="flex gap-3">
                 <FileUpload 
                   onUploadComplete={handleFileUploadComplete}
@@ -349,6 +381,18 @@ export const Homepage: React.FC = () => {
                 </Button>
               </div>
             </div>
+            
+            {/* AI Integration Notice */}
+            <div className="p-3 bg-green-900/30 border border-green-700/50 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <Database className="size-4 text-green-400" />
+                <span className="text-green-300 text-sm font-medium">AI Integration Active</span>
+              </div>
+              <p className="text-green-200/80 text-xs">
+                Your AI mentor can reference these documents in conversations and provide personalized advice based on your uploads.
+              </p>
+            </div>
+            
             <FileManager />
           </div>
         );
@@ -471,7 +515,7 @@ export const Homepage: React.FC = () => {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-base font-semibold text-white mb-3">Jargon Guide</h3>
-                <p className="text-gray-400 text-sm mb-3">Understand complex financial terms with simple explanations.</p>
+                <p className="text-gray-400 text-sm mb-3">Financial terms your AI mentor can explain and reference.</p>
                 <div className="space-y-2">
                   {['Asset Allocation', 'Compound Interest', 'Diversification', 'ROI'].map((term) => (
                     <div key={term} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-b-0">
@@ -855,7 +899,7 @@ export const Homepage: React.FC = () => {
                               <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                               <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                             </div>
-                            <span className="text-sm text-gray-400">Thinking...</span>
+                            <span className="text-sm text-gray-400">Analyzing your data...</span>
                           </div>
                         </div>
                       </div>
@@ -892,7 +936,7 @@ export const Homepage: React.FC = () => {
                     value={chatMessage}
                     onChange={(e) => setChatMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Ask your financial mentor anything..."
+                    placeholder="Ask about your documents, financial terms, or get personalized advice..."
                     disabled={isGenerating}
                     className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 h-12 rounded-lg"
                     style={{ fontFamily: "'Source Code Pro', monospace" }}
@@ -924,6 +968,16 @@ export const Homepage: React.FC = () => {
                   <Mic className="size-5" />
                 </Button>
 
+                {/* Refresh Context Button */}
+                <Button
+                  onClick={refreshContext}
+                  className="h-12 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                  title="Refresh AI context with latest data"
+                >
+                  <RefreshCw className="size-4 mr-2" />
+                  Refresh
+                </Button>
+
                 {/* Clear Chat Button */}
                 <Button
                   onClick={clearChat}
@@ -936,10 +990,10 @@ export const Homepage: React.FC = () => {
 
               {/* Instructions */}
               <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-400 justify-center">
-                <span>💬 Type your question and press Enter</span>
+                <span>💬 Ask about your uploaded documents</span>
                 <span>🎤 Hold voice button to speak</span>
-                <span>📎 Click + to upload documents</span>
-                <span>🧹 Clear button resets the conversation</span>
+                <span>📚 Reference financial terms from jargon guide</span>
+                <span>🔄 Refresh button updates AI context</span>
                 {!speechSupported && <span className="text-red-400">⚠️ Speech recognition not supported in this browser</span>}
               </div>
             </div>
