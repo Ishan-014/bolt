@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, BookOpen, Volume2, VolumeX, Loader2, Send, Copy, Check, Mic, Bot, User } from 'lucide-react';
+import { Search, BookOpen, Volume2, VolumeX, Loader2, Send, Copy, Check, Mic, Bot, User, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useFinancialChat } from '@/hooks/useFinancialChat';
@@ -16,6 +16,8 @@ interface TutorMessage {
 
 interface FinancialTutorProps {
   className?: string;
+  width?: number;
+  onWidthChange?: (width: number) => void;
 }
 
 // Knowledge base storage
@@ -50,12 +52,19 @@ const saveToKnowledgeBase = (topic: string, content: string) => {
   }
 };
 
-export const FinancialTutor: React.FC<FinancialTutorProps> = ({ className }) => {
+export const FinancialTutor: React.FC<FinancialTutorProps> = ({ 
+  className, 
+  width = 320, 
+  onWidthChange 
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [messages, setMessages] = useState<TutorMessage[]>([]);
   const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null);
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   const { generateResponse, isGenerating } = useFinancialChat();
 
@@ -74,6 +83,35 @@ export const FinancialTutor: React.FC<FinancialTutorProps> = ({ className }) => 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Handle mouse resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      const newWidth = window.innerWidth - e.clientX;
+      const minWidth = 280;
+      const maxWidth = 600;
+      
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        onWidthChange?.(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, onWidthChange]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -144,11 +182,41 @@ Make it engaging and easy to understand, suitable for someone learning about fin
 
       console.log('Playing audio for message:', messageId);
 
-      // Use browser's built-in speech synthesis
+      // Use browser's built-in speech synthesis with female voice
       if ('speechSynthesis' in window) {
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.8;
-        utterance.pitch = 1;
+        
+        // Get available voices and select a female voice
+        const voices = speechSynthesis.getVoices();
+        const femaleVoice = voices.find(voice => 
+          voice.name.toLowerCase().includes('female') ||
+          voice.name.toLowerCase().includes('woman') ||
+          voice.name.toLowerCase().includes('samantha') ||
+          voice.name.toLowerCase().includes('karen') ||
+          voice.name.toLowerCase().includes('susan') ||
+          voice.name.toLowerCase().includes('victoria') ||
+          voice.name.toLowerCase().includes('zira') ||
+          voice.name.toLowerCase().includes('hazel') ||
+          (voice.gender && voice.gender === 'female')
+        );
+        
+        if (femaleVoice) {
+          utterance.voice = femaleVoice;
+        } else {
+          // Fallback: try to find any voice that sounds female by name patterns
+          const possibleFemaleVoice = voices.find(voice => 
+            voice.name.includes('Google UK English Female') ||
+            voice.name.includes('Microsoft Zira') ||
+            voice.name.includes('Microsoft Hazel') ||
+            voice.name.includes('Alex') && voice.lang.includes('en')
+          );
+          if (possibleFemaleVoice) {
+            utterance.voice = possibleFemaleVoice;
+          }
+        }
+        
+        utterance.rate = 0.85;
+        utterance.pitch = 1.1; // Slightly higher pitch for more feminine sound
         utterance.volume = 0.8;
         
         utterance.onend = () => {
@@ -204,13 +272,89 @@ Make it engaging and easy to understand, suitable for someone learning about fin
     stopAudio();
   };
 
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+    if (!isCollapsed) {
+      onWidthChange?.(60); // Collapsed width
+    } else {
+      onWidthChange?.(320); // Default width
+    }
+  };
+
+  const adjustWidth = (delta: number) => {
+    const newWidth = Math.max(280, Math.min(600, width + delta));
+    onWidthChange?.(newWidth);
+  };
+
+  if (isCollapsed) {
+    return (
+      <div 
+        className={cn("bg-gray-800 border-l border-gray-700 flex flex-col items-center py-4", className)}
+        style={{ width: 60 }}
+      >
+        <Button
+          onClick={toggleCollapse}
+          variant="ghost"
+          size="icon"
+          className="text-gray-400 hover:text-white hover:bg-gray-700 w-10 h-10"
+        >
+          <ChevronLeft className="size-5" />
+        </Button>
+        <div className="mt-4 writing-mode-vertical text-gray-400 text-sm font-medium transform rotate-90 whitespace-nowrap">
+          Financial Tutor
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={cn("w-80 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden", className)}>
+    <div 
+      className={cn("bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden relative", className)}
+      style={{ width }}
+    >
+      {/* Resize handle */}
+      <div
+        ref={resizeRef}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-green-500 transition-colors z-10"
+        onMouseDown={() => setIsResizing(true)}
+      />
+
       {/* Header */}
       <div className="p-4 border-b border-gray-700 flex-shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-          <BookOpen className="size-5 text-green-400" />
-          <h2 className="text-white text-xl font-bold">Financial Tutor</h2>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <BookOpen className="size-5 text-green-400" />
+            <h2 className="text-white text-lg font-bold">Financial Tutor</h2>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              onClick={() => adjustWidth(-40)}
+              variant="ghost"
+              size="icon"
+              className="text-gray-400 hover:text-white hover:bg-gray-700 w-8 h-8"
+              title="Decrease width"
+            >
+              <Minimize2 className="size-4" />
+            </Button>
+            <Button
+              onClick={() => adjustWidth(40)}
+              variant="ghost"
+              size="icon"
+              className="text-gray-400 hover:text-white hover:bg-gray-700 w-8 h-8"
+              title="Increase width"
+            >
+              <Maximize2 className="size-4" />
+            </Button>
+            <Button
+              onClick={toggleCollapse}
+              variant="ghost"
+              size="icon"
+              className="text-gray-400 hover:text-white hover:bg-gray-700 w-8 h-8"
+              title="Collapse panel"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </div>
         <p className="text-gray-400 text-sm">Ask me to teach you anything about finance</p>
         
@@ -236,7 +380,7 @@ Make it engaging and easy to understand, suitable for someone learning about fin
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={handleKeyPress}
             disabled={isGenerating}
-            className="w-full bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 focus:outline-none focus:border-green-500 transition-colors"
+            className="w-full bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 h-10 focus:outline-none focus:border-green-500 transition-colors"
           />
           <Button
             onClick={handleSearch}
@@ -362,7 +506,7 @@ Make it engaging and easy to understand, suitable for someone learning about fin
         <Button
           onClick={clearTutorChat}
           variant="outline"
-          className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+          className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white h-10"
         >
           Clear Tutor Chat
         </Button>
