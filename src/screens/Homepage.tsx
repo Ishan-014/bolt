@@ -10,10 +10,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserFiles } from '@/hooks/useUserFiles';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useFinancialChat } from '@/hooks/useFinancialChat';
-import { conversationAtom } from '@/store/conversation';
-import { createConversation } from '@/api';
-import { apiTokenAtom } from '@/store/tokens';
-import Video from '@/components/Video';
 import { 
   Video as VideoIcon, 
   Files, 
@@ -49,23 +45,14 @@ import {
   LogOut,
   Search,
   Plus,
-  Paperclip
+  Paperclip,
+  Bot,
+  Copy,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import {
-  DailyAudio,
-  useDaily,
-  useLocalSessionId,
-  useParticipantIds,
-  useVideoTrack,
-  useAudioTrack,
-  useDevices,
-} from "@daily-co/daily-react";
-import { quantum } from 'ldrs';
-import zoomSound from "@/assets/sounds/zoom.mp3";
-
-quantum.register();
 
 type DashboardSection = 'uploaded-documents' | 'reports' | 'chat-history' | 'knowledge-base' | 'settings' | null;
 
@@ -81,31 +68,26 @@ interface ChatMessage {
 export const Homepage: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [activeSection, setActiveSection] = useState<DashboardSection>(null);
-  const [conversation, setConversation] = useAtom(conversationAtom);
-  const [token, setToken] = useAtom(apiTokenAtom);
-  const [hasMediaAccess, setHasMediaAccess] = useState(false);
-  const [mediaError, setMediaError] = useState<string | null>(null);
-  const [isStarting, setIsStarting] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
-  const [start, setStart] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [isPersonaActive, setIsPersonaActive] = useState(false);
   const [currentInterimMessageId, setCurrentInterimMessageId] = useState<string | null>(null);
 
   const { user, signOut } = useAuth();
   const { files, getFileCount } = useUserFiles();
   const { generateResponse, isGenerating } = useFinancialChat();
 
-  // Daily.co hooks
-  const daily = useDaily();
-  const { currentMic, setMicrophone, setSpeaker } = useDevices();
-  const localSessionId = useLocalSessionId();
-  const localVideo = useVideoTrack(localSessionId);
-  const localAudio = useAudioTrack(localSessionId);
-  const isCameraEnabled = !localVideo.isOff;
-  const isMicEnabled = !localAudio.isOff;
-  const remoteParticipantIds = useParticipantIds({ filter: "remote" });
+  // Initialize chat with welcome message on component mount
+  useEffect(() => {
+    const welcomeMessage: ChatMessage = {
+      id: `welcome-${Date.now()}`,
+      role: 'assistant',
+      content: "Hello! I'm FinIQ.ai, your AI financial mentor. I'm here to help you with budgeting, investing, saving, retirement planning, and all your financial goals. What would you like to discuss today?",
+      timestamp: new Date(),
+      type: 'text'
+    };
+    setChatMessages([welcomeMessage]);
+  }, []);
 
   // Speech recognition
   const {
@@ -180,7 +162,6 @@ export const Homepage: React.FC = () => {
     },
     onError: (error) => {
       console.error('Speech recognition error:', error);
-      setMediaError(error);
       // Clean up interim message on error
       if (currentInterimMessageId) {
         setChatMessages(prev => prev.filter(msg => msg.id !== currentInterimMessageId));
@@ -188,44 +169,6 @@ export const Homepage: React.FC = () => {
       }
     }
   });
-
-  const audio = useMemo(() => {
-    const audioObj = new Audio(zoomSound);
-    audioObj.volume = 0.7;
-    return audioObj;
-  }, []);
-
-  // Set the API key automatically
-  React.useEffect(() => {
-    if (!token) {
-      const apiKey = "f840d8e47ab44f0d85e8ca21f24275a8";
-      setToken(apiKey);
-      localStorage.setItem('tavus-token', apiKey);
-    }
-  }, [token, setToken]);
-
-  useEffect(() => {
-    if (remoteParticipantIds.length && !start) {
-      setStart(true);
-      setTimeout(() => daily?.setLocalAudio(true), 4000);
-    }
-  }, [remoteParticipantIds, start]);
-
-  useEffect(() => {
-    if (conversation?.conversation_url && hasMediaAccess) {
-      daily
-        ?.join({
-          url: conversation.conversation_url,
-          startVideoOff: true, // No camera needed for user
-          startAudioOff: true,
-        })
-        .then(() => {
-          daily?.setLocalVideo(false); // Disable user camera
-          daily?.setLocalAudio(false);
-          setIsPersonaActive(true);
-        });
-    }
-  }, [conversation?.conversation_url, hasMediaAccess]);
 
   const handleFileUploadComplete = (uploadedFiles: any[]) => {
     console.log('Files uploaded successfully:', uploadedFiles);
@@ -236,9 +179,9 @@ export const Homepage: React.FC = () => {
     if (!messageText.trim()) return;
 
     try {
-      console.log('Sending message to AI:', messageText);
+      console.log('Sending message to Google Gemini:', messageText);
       
-      // Generate AI response using Groq
+      // Generate AI response using Google Gemini
       const aiResponse = await generateResponse(messageText.trim());
       
       // Add AI response to chat
@@ -251,19 +194,6 @@ export const Homepage: React.FC = () => {
       };
       setChatMessages(prev => [...prev, assistantMessage]);
 
-      // Send AI response to Tavus persona for speech synthesis
-      if (conversation?.conversation_id && daily) {
-        console.log('Sending AI response to Tavus persona:', aiResponse);
-        daily.sendAppMessage({
-          message_type: "conversation",
-          event_type: "conversation.echo",
-          conversation_id: conversation.conversation_id,
-          properties: {
-            modality: "text",
-            text: aiResponse,
-          },
-        });
-      }
     } catch (error) {
       console.error('Error handling message:', error);
       
@@ -279,74 +209,15 @@ export const Homepage: React.FC = () => {
     }
   };
 
-  const startPersonaChat = async () => {
-    try {
-      setIsStarting(true);
-      setMediaError(null);
-      
-      audio.currentTime = 0;
-      await audio.play();
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Request only microphone access (no camera needed)
-      const res = await daily?.startCamera({
-        startVideoOff: true,
-        startAudioOff: false,
-        audioSource: "default",
-      });
-
-      if (res?.mic) {
-        setHasMediaAccess(true);
-        
-        // Set default devices
-        // @ts-expect-error deviceId exists in the MediaDeviceInfo
-        const isDefaultMic = res?.mic?.deviceId === "default";
-        // @ts-expect-error deviceId exists in the MediaDeviceInfo
-        const isDefaultSpeaker = res?.speaker?.deviceId === "default";
-
-        if (!isDefaultMic) {
-          setMicrophone("default");
-        }
-        if (!isDefaultSpeaker) {
-          setSpeaker("default");
-        }
-
-        // Start conversation after media access is granted
-        if (token) {
-          const newConversation = await createConversation(token);
-          setConversation(newConversation);
-          
-          // Add welcome message
-          const welcomeMessage: ChatMessage = {
-            id: `welcome-${Date.now()}`,
-            role: 'assistant',
-            content: "Hello! I'm your AI financial mentor. I'm here to help you with budgeting, investing, saving, and all your financial goals. What would you like to discuss today?",
-            timestamp: new Date(),
-            type: 'text'
-          };
-          setChatMessages([welcomeMessage]);
-        }
-      } else {
-        throw new Error("Failed to access microphone");
-      }
-    } catch (error) {
-      console.error("Media access error:", error);
-      setMediaError("Please allow microphone access to continue with the chat.");
-    } finally {
-      setIsStarting(false);
-    }
-  };
-
-  const stopPersonaChat = () => {
-    if (daily) {
-      daily.leave();
-    }
-    setIsPersonaActive(false);
-    setConversation(null);
-    setHasMediaAccess(false);
-    setStart(false);
-    setChatMessages([]);
+  const clearChat = () => {
+    const welcomeMessage: ChatMessage = {
+      id: `welcome-${Date.now()}`,
+      role: 'assistant',
+      content: "Hello! I'm FinIQ.ai, your AI financial mentor. I'm here to help you with budgeting, investing, saving, retirement planning, and all your financial goals. What would you like to discuss today?",
+      timestamp: new Date(),
+      type: 'text'
+    };
+    setChatMessages([welcomeMessage]);
     resetTranscript();
     if (currentInterimMessageId) {
       setCurrentInterimMessageId(null);
@@ -401,16 +272,13 @@ export const Homepage: React.FC = () => {
   }, [sendTextMessage]);
 
   const startVoiceRecording = useCallback(() => {
-    if (hasMediaAccess && speechSupported && !isListening) {
+    if (speechSupported && !isListening) {
       console.log('Starting voice recording...');
-      setMediaError(null);
       startListening();
     } else if (!speechSupported) {
-      setMediaError('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
-    } else if (!hasMediaAccess) {
-      setMediaError('Please enable microphone access first.');
+      alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
     }
-  }, [hasMediaAccess, speechSupported, isListening, startListening]);
+  }, [speechSupported, isListening, startListening]);
 
   const stopVoiceRecording = useCallback(() => {
     if (isListening) {
@@ -418,6 +286,10 @@ export const Homepage: React.FC = () => {
       stopListening();
     }
   }, [isListening, stopListening]);
+
+  const copyMessage = (content: string) => {
+    navigator.clipboard.writeText(content);
+  };
 
   const fileCount = getFileCount();
 
@@ -832,9 +704,9 @@ export const Homepage: React.FC = () => {
         </div>
       </div>
       
-      {/* Main Content - Persona Chat Interface */}
+      {/* Main Content - Chat Interface (Always Active) */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {/* Top Header with FinIQ.ai Branding and Dashboard - Reduced Height */}
+        {/* Top Header with FinIQ.ai Branding and Dashboard */}
         <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex-shrink-0">
           <div className="flex items-center justify-between">
             {/* Left: FinIQ.ai Branding and User Welcome */}
@@ -857,7 +729,7 @@ export const Homepage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Dashboard Navigation - Icons Only with Tooltips - Reduced Size */}
+            {/* Right: Dashboard Navigation */}
             <div className="flex gap-1.5">
               {dashboardOptions.map((option) => (
                 <div key={option.id} className="relative group">
@@ -877,7 +749,7 @@ export const Homepage: React.FC = () => {
                     )}
                   </button>
                   
-                  {/* Tooltip - Now positioned below */}
+                  {/* Tooltip */}
                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                     {option.title}
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
@@ -888,198 +760,189 @@ export const Homepage: React.FC = () => {
           </div>
         </div>
 
-        {/* Persona Chat Interface */}
+        {/* Chat Interface (Always Active) */}
         {!activeSection && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            {!isPersonaActive ? (
-              /* Start Chat Interface */
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center max-w-md">
-                  <div className="w-24 h-24 bg-gradient-to-br from-green-600 to-green-700 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                    <User className="size-12 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-4">
-                    Meet Your AI Financial Mentor
-                  </h2>
-                  <p className="text-gray-300 text-base mb-8">
-                    Start a conversation with your personalized AI financial advisor. Ask questions, get insights, and upload documents for analysis.
-                  </p>
-                  
-                  {mediaError && (
-                    <div className="mb-6 flex items-center gap-2 text-wrap rounded-lg border bg-red-500/20 border-red-500/50 p-4 text-red-200 backdrop-blur-sm">
-                      <AlertTriangle className="size-5 flex-shrink-0" />
-                      <p className="text-sm">{mediaError}</p>
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={startPersonaChat}
-                    disabled={isStarting}
-                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-green-600/25 transition-all duration-200"
-                  >
-                    {isStarting ? (
-                      <>
-                        <l-quantum size="20" speed="1.75" color="white"></l-quantum>
-                        <span className="ml-2">Starting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <MessageCircle className="size-5 mr-2" />
-                        Start Conversation
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              /* Active Chat Interface */
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Persona Video */}
-                <div className="flex-1 relative bg-black">
-                  {remoteParticipantIds?.length > 0 ? (
-                    <Video
-                      id={remoteParticipantIds[0]}
-                      className="size-full"
-                      tileClassName="!object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-center">
-                        <l-quantum size="45" speed="1.75" color="white"></l-quantum>
-                        <p className="text-white text-lg mt-4">Your financial mentor is joining...</p>
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {chatMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-3xl ${message.role === 'user' ? 'ml-12' : 'mr-12'}`}>
+                    <div
+                      className={`rounded-lg p-4 ${
+                        message.role === 'user'
+                          ? message.isInterim 
+                            ? 'bg-green-600/70 text-white border border-green-400'
+                            : 'bg-green-600 text-white'
+                          : 'bg-gray-800 text-gray-200 border border-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          message.role === 'user' ? 'bg-green-700' : 'bg-gray-700'
+                        }`}>
+                          {message.role === 'user' ? (
+                            message.type === 'voice' ? <Mic className="size-4" /> : <User className="size-4" />
+                          ) : (
+                            <Bot className="size-4" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-sm">
+                              {message.role === 'user' ? 'You' : 'FinIQ.ai'}
+                            </span>
+                            <span className="text-xs opacity-70">
+                              {message.timestamp.toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div className={`text-sm leading-relaxed ${message.isInterim ? 'italic' : ''}`}>
+                            {message.content}
+                            {message.isInterim && <span className="animate-pulse text-green-200 ml-1">|</span>}
+                          </div>
+                          {message.role === 'assistant' && !message.isInterim && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button
+                                onClick={() => copyMessage(message.content)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                              >
+                                <Copy className="size-3 mr-1" />
+                                Copy
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                              >
+                                <ThumbsUp className="size-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                              >
+                                <ThumbsDown className="size-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  )}
-
-                  {/* Chat Messages Overlay */}
-                  <div className="absolute top-4 left-4 right-4 max-h-60 overflow-y-auto scrollbar-hide bg-black/60 backdrop-blur-sm rounded-lg p-4">
-                    <div className="space-y-3">
-                      {chatMessages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
-                              message.role === 'user'
-                                ? message.isInterim 
-                                  ? 'bg-green-600/70 text-white border border-green-400'
-                                  : 'bg-green-600 text-white'
-                                : 'bg-gray-700 text-gray-200'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              {message.type === 'voice' && <Mic className="size-3" />}
-                              <span className={message.isInterim ? 'italic' : ''}>
-                                {message.content}
-                                {message.isInterim && <span className="animate-pulse text-green-200 ml-1">|</span>}
-                              </span>
-                            </div>
-                            <div className="text-xs opacity-70 mt-1">
-                              {message.timestamp.toLocaleTimeString()}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {isGenerating && (
-                        <div className="flex justify-start">
-                          <div className="max-w-xs px-3 py-2 rounded-lg text-sm bg-gray-700 text-gray-200">
-                            <div className="flex items-center gap-2">
-                              <div className="flex gap-1">
-                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
-                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                              </div>
-                              <span className="text-xs text-gray-400">Thinking...</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Voice Transcript Overlay */}
-                  {(isListening || interimTranscript) && (
-                    <div className="absolute bottom-24 left-4">
-                      <VoiceTranscript
-                        isListening={isListening}
-                        transcript={transcript}
-                        interimTranscript={interimTranscript}
-                      />
-                    </div>
-                  )}
-
-                  {/* End Chat Button */}
-                  <div className="absolute top-4 right-4">
-                    <Button
-                      onClick={stopPersonaChat}
-                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-                    >
-                      <PhoneIcon className="size-4 rotate-[135deg] mr-2" />
-                      End Chat
-                    </Button>
                   </div>
                 </div>
-
-                {/* Chat Input */}
-                <div className="bg-gray-800 border-t border-gray-700 p-4 flex-shrink-0">
-                  <div className="flex items-center gap-3">
-                    {/* File Upload Button */}
-                    <FileUpload 
-                      onUploadComplete={handleFileUploadComplete}
-                      maxFiles={5}
-                      maxSize={25 * 1024 * 1024}
-                    />
-
-                    {/* Text Input */}
-                    <div className="flex-1 relative">
-                      <Input
-                        value={chatMessage}
-                        onChange={(e) => setChatMessage(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Ask your financial mentor anything..."
-                        disabled={isGenerating}
-                        className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 h-12 rounded-lg"
-                        style={{ fontFamily: "'Source Code Pro', monospace" }}
-                      />
-                      <Button
-                        onClick={sendTextMessage}
-                        disabled={!chatMessage.trim() || isGenerating}
-                        className="absolute right-1 top-1 h-10 w-10 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                        size="icon"
-                      >
-                        <Send className="size-4" />
-                      </Button>
+              ))}
+              
+              {isGenerating && (
+                <div className="flex justify-start">
+                  <div className="max-w-3xl mr-12">
+                    <div className="bg-gray-800 text-gray-200 border border-gray-700 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Bot className="size-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-sm">FinIQ.ai</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
+                            <span className="text-sm text-gray-400">Thinking...</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    {/* Voice Button */}
-                    <Button
-                      onMouseDown={startVoiceRecording}
-                      onMouseUp={stopVoiceRecording}
-                      onMouseLeave={stopVoiceRecording}
-                      disabled={isGenerating}
-                      className={cn(
-                        "h-12 w-12 rounded-lg transition-all duration-200",
-                        isListening 
-                          ? "bg-red-500 hover:bg-red-600 animate-pulse" 
-                          : "bg-green-600 hover:bg-green-700"
-                      )}
-                      size="icon"
-                    >
-                      <Mic className="size-5" />
-                    </Button>
-                  </div>
-
-                  {/* Instructions */}
-                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-400 justify-center">
-                    <span>💬 Type your question and press Enter</span>
-                    <span>🎤 Hold voice button to speak</span>
-                    <span>📎 Click + to upload documents</span>
-                    {!speechSupported && <span className="text-red-400">⚠️ Speech recognition not supported in this browser</span>}
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* Voice Transcript Overlay */}
+            {(isListening || interimTranscript) && (
+              <div className="absolute bottom-24 left-4">
+                <VoiceTranscript
+                  isListening={isListening}
+                  transcript={transcript}
+                  interimTranscript={interimTranscript}
+                />
               </div>
             )}
+
+            {/* Chat Input */}
+            <div className="bg-gray-800 border-t border-gray-700 p-4 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                {/* File Upload Button */}
+                <FileUpload 
+                  onUploadComplete={handleFileUploadComplete}
+                  maxFiles={5}
+                  maxSize={25 * 1024 * 1024}
+                />
+
+                {/* Text Input */}
+                <div className="flex-1 relative">
+                  <Input
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask your financial mentor anything..."
+                    disabled={isGenerating}
+                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 h-12 rounded-lg"
+                    style={{ fontFamily: "'Source Code Pro', monospace" }}
+                  />
+                  <Button
+                    onClick={sendTextMessage}
+                    disabled={!chatMessage.trim() || isGenerating}
+                    className="absolute right-1 top-1 h-10 w-10 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                    size="icon"
+                  >
+                    <Send className="size-4" />
+                  </Button>
+                </div>
+
+                {/* Voice Button */}
+                <Button
+                  onMouseDown={startVoiceRecording}
+                  onMouseUp={stopVoiceRecording}
+                  onMouseLeave={stopVoiceRecording}
+                  disabled={isGenerating}
+                  className={cn(
+                    "h-12 w-12 rounded-lg transition-all duration-200",
+                    isListening 
+                      ? "bg-red-500 hover:bg-red-600 animate-pulse" 
+                      : "bg-green-600 hover:bg-green-700"
+                  )}
+                  size="icon"
+                >
+                  <Mic className="size-5" />
+                </Button>
+
+                {/* Clear Chat Button */}
+                <Button
+                  onClick={clearChat}
+                  className="h-12 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+                >
+                  <X className="size-4 mr-2" />
+                  Clear
+                </Button>
+              </div>
+
+              {/* Instructions */}
+              <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-400 justify-center">
+                <span>💬 Type your question and press Enter</span>
+                <span>🎤 Hold voice button to speak</span>
+                <span>📎 Click + to upload documents</span>
+                <span>🧹 Clear button resets the conversation</span>
+                {!speechSupported && <span className="text-red-400">⚠️ Speech recognition not supported in this browser</span>}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1089,8 +952,6 @@ export const Homepage: React.FC = () => {
             {renderSectionContent()}
           </div>
         )}
-
-        <DailyAudio />
       </div>
 
       {/* Right Sidebar - Jargon Guide */}
